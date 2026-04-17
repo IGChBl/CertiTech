@@ -1,0 +1,468 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleCode {
+  CLIENT
+  TECHNICIAN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  IN_REVIEW
+  VERIFIED
+}
+
+enum RequestUrgency {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ServiceRequestStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum ReportReason {
+  FAKE_PROFILE
+  INAPPROPRIATE_BEHAVIOR
+  SCAM
+  OFFENSIVE_LANGUAGE
+  MISLEADING_CONTENT
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum VerificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  NEW_REQUEST
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  SERVICE_COMPLETED
+  NEW_REVIEW
+  TECHNICIAN_VERIFIED
+  REPORT_UPDATED
+  SYSTEM
+}
+
+enum AdminTargetType {
+  USER
+  TECHNICIAN
+  SERVICE_REQUEST
+  REVIEW
+  REPORT
+  CATEGORY
+  VERIFICATION
+}
+
+enum AdminActionType {
+  VERIFY_TECHNICIAN
+  REJECT_VERIFICATION
+  SUSPEND_USER
+  REACTIVATE_USER
+  DELETE_REQUEST
+  MODERATE_REVIEW
+  UPDATE_CATEGORY
+  UPDATE_REQUEST_STATUS
+  OTHER
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  code      RoleCode @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  phone           String?
+  isEmailVerified Boolean    @default(false)
+  emailVerifiedAt DateTime?
+  status          UserStatus @default(ACTIVE)
+  roleId          String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  lastLoginAt     DateTime?
+
+  role                  Role                     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  clientProfile         ClientProfile?
+  technicianProfile     TechnicianProfile?
+  sentMessages          Message[]                @relation("MessageSender")
+  chatParticipants      ChatParticipant[]
+  serviceRequestsClient ServiceRequest[]         @relation("ServiceRequestClient")
+  serviceRequestsTech   ServiceRequest[]         @relation("ServiceRequestTechnician")
+  favorites             Favorite[]               @relation("FavoriteClient")
+  reviewsWritten        Review[]                 @relation("ReviewClient")
+  notifications         Notification[]
+  reportsSubmitted      Report[]                 @relation("ReportReporter")
+  reportsAgainst        Report[]                 @relation("ReportReportedUser")
+  verificationRequested VerificationRequest[]    @relation("VerificationRequestedBy")
+  verificationReviewed  VerificationRequest[]    @relation("VerificationReviewedBy")
+  adminActions          AdminAction[]            @relation("AdminActionAdmin")
+  moderatedReports      Report[]                 @relation("ReportReviewer")
+  moderatedReviews      Review[]                 @relation("ReviewModerator")
+  passwordResetTokens   PasswordResetToken[]
+  emailVerification     EmailVerificationToken[]
+  chatsCreated          Chat[]                   @relation("ChatCreatedBy")
+
+  @@index([roleId])
+  @@index([email])
+  @@index([status])
+}
+
+model ClientProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  fullName  String
+  city      String
+  zone      String?
+  address   String?
+  avatarUrl String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TechnicianProfile {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  displayName       String
+  businessName      String?
+  city              String
+  workZone          String?
+  description       String
+  yearsExperience   Int                @default(0)
+  availabilityText  String?
+  scheduleText      String?
+  avatarUrl         String?
+  galleryJson       Json?
+  referencePriceMin Int?
+  referencePriceMax Int?
+  isHomeService     Boolean            @default(true)
+  verification      VerificationStatus @default(UNVERIFIED)
+  verifiedAt        DateTime?
+  completedJobs     Int                @default(0)
+  averageRating     Float              @default(0)
+  totalReviews      Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services             TechnicianService[]
+  reviews              Review[]
+  favorites            Favorite[]
+  reportsAgainst       Report[]              @relation("ReportReportedTechnician")
+  verificationRequests VerificationRequest[]
+
+  @@index([city])
+  @@index([verification])
+}
+
+model ServiceCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  icon        String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  technicianServices TechnicianService[]
+  serviceRequests    ServiceRequest[]
+}
+
+model TechnicianService {
+  id           String   @id @default(cuid())
+  technicianId String
+  categoryId   String
+  title        String
+  description  String?
+  basePrice    Int?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  category   ServiceCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([technicianId, categoryId, title])
+  @@index([technicianId])
+  @@index([categoryId])
+}
+
+model ServiceRequest {
+  id                String               @id @default(cuid())
+  clientId          String
+  technicianId      String?
+  categoryId        String
+  title             String
+  description       String
+  city              String
+  zone              String?
+  locationReference String?
+  desiredDate       DateTime?
+  urgency           RequestUrgency       @default(MEDIUM)
+  budgetMin         Int?
+  budgetMax         Int?
+  status            ServiceRequestStatus @default(PENDING)
+  isDirectRequest   Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  completedAt       DateTime?
+  canceledAt        DateTime?
+
+  client     User            @relation("ServiceRequestClient", fields: [clientId], references: [id], onDelete: Cascade)
+  technician User?           @relation("ServiceRequestTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  category   ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images     RequestImage[]
+  chat       Chat?
+  review     Review?
+  reports    Report[]
+
+  @@index([clientId])
+  @@index([technicianId])
+  @@index([categoryId])
+  @@index([city])
+  @@index([status])
+}
+
+model RequestImage {
+  id        String   @id @default(cuid())
+  requestId String
+  url       String
+  caption   String?
+  createdAt DateTime @default(now())
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+}
+
+model Chat {
+  id               String   @id @default(cuid())
+  serviceRequestId String?  @unique
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  serviceRequest ServiceRequest?   @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  createdBy      User              @relation("ChatCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  participants   ChatParticipant[]
+  messages       Message[]
+
+  @@index([createdById])
+}
+
+model ChatParticipant {
+  id         String    @id @default(cuid())
+  chatId     String
+  userId     String
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime?
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  chatId    String
+  senderId  String
+  content   String
+  imageUrl  String?
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@index([senderId])
+}
+
+model Review {
+  id                  String   @id @default(cuid())
+  serviceRequestId    String   @unique
+  clientId            String
+  technicianProfileId String
+  rating              Int
+  comment             String?
+  isModerated         Boolean  @default(false)
+  isHidden            Boolean  @default(false)
+  moderatedById       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  serviceRequest    ServiceRequest    @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  client            User              @relation("ReviewClient", fields: [clientId], references: [id], onDelete: Cascade)
+  technicianProfile TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+  moderatedBy       User?             @relation("ReviewModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([technicianProfileId])
+  @@index([rating])
+}
+
+model Favorite {
+  id                  String   @id @default(cuid())
+  clientId            String
+  technicianProfileId String
+  createdAt           DateTime @default(now())
+
+  client            User              @relation("FavoriteClient", fields: [clientId], references: [id], onDelete: Cascade)
+  technicianProfile TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, technicianProfileId])
+  @@index([technicianProfileId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  metadata  Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([isRead])
+}
+
+model Report {
+  id                   String       @id @default(cuid())
+  reporterId           String
+  reportedUserId       String?
+  reportedTechnicianId String?
+  serviceRequestId     String?
+  reason               ReportReason
+  details              String
+  status               ReportStatus @default(OPEN)
+  reviewedById         String?
+  resolutionNote       String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  reviewedAt           DateTime?
+
+  reporter           User               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser       User?              @relation("ReportReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reportedTechnician TechnicianProfile? @relation("ReportReportedTechnician", fields: [reportedTechnicianId], references: [id], onDelete: SetNull)
+  serviceRequest     ServiceRequest?    @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  reviewedBy         User?              @relation("ReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([reportedTechnicianId])
+  @@index([status])
+}
+
+model VerificationRequest {
+  id                  String                    @id @default(cuid())
+  technicianProfileId String
+  requestedById       String
+  documentUrl         String?
+  notes               String?
+  status              VerificationRequestStatus @default(PENDING)
+  reviewedById        String?
+  reviewNote          String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  reviewedAt          DateTime?
+
+  technicianProfile TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+  requestedBy       User              @relation("VerificationRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy        User?             @relation("VerificationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([technicianProfileId])
+  @@index([status])
+}
+
+model AdminAction {
+  id         String          @id @default(cuid())
+  adminId    String
+  actionType AdminActionType
+  targetType AdminTargetType
+  targetId   String
+  details    Json?
+  createdAt  DateTime        @default(now())
+
+  admin User @relation("AdminActionAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}

@@ -1,0 +1,81 @@
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { requirePageRole } from "@/lib/auth/page";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { Card } from "@/components/ui/card";
+
+const adminLinks = [
+  { href: "/dashboard/admin", label: "Resumen" },
+  { href: "/dashboard/admin/usuarios", label: "Usuarios" },
+  { href: "/dashboard/admin/tecnicos", label: "Tecnicos" },
+  { href: "/dashboard/admin/categorias", label: "Categorias" },
+  { href: "/dashboard/admin/solicitudes", label: "Solicitudes" },
+  { href: "/dashboard/admin/reportes", label: "Reportes" },
+  { href: "/dashboard/admin/resenas", label: "Resenas" },
+  { href: "/dashboard/admin/moderacion", label: "Moderacion" },
+];
+
+export default async function AdminDashboardPage() {
+  await requirePageRole("ADMIN");
+
+  const [users, clients, technicians, requests, completed, chats, reviews] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: { code: "CLIENT" } } }),
+    prisma.user.count({ where: { role: { code: "TECHNICIAN" } } }),
+    prisma.serviceRequest.count(),
+    prisma.serviceRequest.count({ where: { status: "COMPLETED" } }),
+    prisma.chat.count(),
+    prisma.review.count(),
+  ]);
+
+  const topTechs = await prisma.technicianProfile.findMany({
+    where: { totalReviews: { gt: 0 } },
+    orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+    take: 5,
+  });
+
+  return (
+    <DashboardShell title="Panel administrativo" subtitle="Vista general de operacion y calidad de la plataforma." links={adminLinks}>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Total usuarios", value: users },
+          { label: "Clientes", value: clients },
+          { label: "Tecnicos", value: technicians },
+          { label: "Solicitudes", value: requests },
+          { label: "Servicios completados", value: completed },
+          { label: "Chats", value: chats },
+          { label: "Resenas", value: reviews },
+        ].map((item) => (
+          <Card key={item.label}>
+            <p className="text-sm text-slate-500">{item.label}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{item.value}</p>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Tecnicos mejor valorados</h2>
+        <div className="space-y-2">
+          {topTechs.map((tech) => (
+            <div key={tech.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+              <p className="text-sm font-medium text-slate-900">{tech.displayName}</p>
+              <p className="text-xs text-slate-500">
+                {tech.averageRating.toFixed(1)} estrellas ({tech.totalReviews})
+              </p>
+            </div>
+          ))}
+          {!topTechs.length ? <p className="text-sm text-slate-600">Sin datos suficientes aun.</p> : null}
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-sm text-slate-600">
+          Tambien puedes consultar las rutas API administrativas para integracion externa y analitica avanzada.
+        </p>
+        <Link href="/api/admin/metrics" className="mt-2 inline-block text-sm font-semibold text-slate-900 underline">
+          Ver JSON de metricas
+        </Link>
+      </Card>
+    </DashboardShell>
+  );
+}

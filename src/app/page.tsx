@@ -1,65 +1,178 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, CheckCircle2, Search, ShieldCheck, Star } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { SectionTitle } from "@/components/ui/section-title";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { TechnicianCard } from "@/components/cards/technician-card";
 
-export default function Home() {
+export default async function Home() {
+  const [categories, featuredTechnicians] = await Promise.all([
+    prisma.serviceCategory.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      take: 8,
+      include: {
+        _count: {
+          select: { technicianServices: true },
+        },
+      },
+    }),
+    prisma.technicianProfile.findMany({
+      where: {
+        user: { status: "ACTIVE" },
+      },
+      orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+      take: 6,
+      include: {
+        services: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    }),
+  ]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div>
+      <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-16 md:grid-cols-[1.2fr_0.8fr] md:px-6 md:py-20">
+        <div className="space-y-6">
+          <Badge>Marketplace de servicios tecnicos</Badge>
+          <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-slate-900 md:text-6xl">
+            Encuentra tecnicos confiables cerca de vos
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="max-w-2xl text-lg text-slate-600">
+            Conectamos personas con expertos para resolver problemas reales en el hogar y negocio,
+            con perfiles profesionales, reputacion y chat en tiempo real.
           </p>
+
+          <form action="/tecnicos" method="get" className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-lg md:flex-row">
+            <div className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3">
+              <Search className="h-4 w-4 text-slate-500" />
+              <input
+                type="text"
+                name="q"
+                placeholder="Ej: Electricista, plomero, aire acondicionado..."
+                className="h-11 w-full bg-transparent text-sm outline-none"
+              />
+            </div>
+            <Button type="submit" className="h-11 px-6">
+              Buscar tecnico
+            </Button>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" /> Tecnicos verificados
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Star className="h-4 w-4 text-amber-500" /> Reputacion transparente
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-sky-500" /> Respuesta agil
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <Card className="space-y-4 bg-slate-900 text-white">
+          <h2 className="text-2xl font-semibold">Beneficios para tecnicos</h2>
+          <ul className="space-y-3 text-sm text-slate-200">
+            <li>Recibe solicitudes relevantes segun tus categorias.</li>
+            <li>Construye reputacion con valoraciones reales.</li>
+            <li>Gestiona chats y trabajos desde tu dashboard.</li>
+            <li>Escala tu negocio con presencia digital profesional.</li>
+          </ul>
+          <Link href="/registro" className="inline-flex items-center gap-2 text-sm font-semibold text-white underline">
+            Crear perfil tecnico <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Card>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl space-y-6 px-4 py-12 md:px-6">
+        <SectionTitle
+          title="Categorias populares"
+          subtitle="Elige la especialidad que necesitas y conecta en minutos con tecnicos disponibles."
+        />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {categories.map((category) => (
+            <Link
+              key={category.id}
+              href={`/tecnicos?category=${category.slug}`}
+              className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <p className="text-lg font-semibold text-slate-900">{category.name}</p>
+              <p className="mt-1 text-sm text-slate-600">{category._count.technicianServices} tecnicos activos</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl space-y-6 px-4 py-12 md:px-6">
+        <SectionTitle
+          title="Tecnicos destacados"
+          subtitle="Perfiles con mejor reputacion y experiencia en la plataforma."
+        />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredTechnicians.map((technician) => (
+            <TechnicianCard
+              key={technician.id}
+              technician={{
+                id: technician.id,
+                displayName: technician.displayName,
+                businessName: technician.businessName,
+                city: technician.city,
+                workZone: technician.workZone,
+                description: technician.description,
+                averageRating: technician.averageRating,
+                totalReviews: technician.totalReviews,
+                verification: technician.verification,
+                referencePriceMin: technician.referencePriceMin,
+                categories: technician.services.map((service) => service.category.name),
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ))}
         </div>
-      </main>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-12 md:grid-cols-3 md:px-6">
+        {[
+          {
+            title: "1. Publica tu necesidad",
+            text: "Describe problema, categoria, ubicacion y presupuesto estimado.",
+          },
+          {
+            title: "2. Compara tecnicos",
+            text: "Revisa experiencia, estrellas, comentarios y estado de verificacion.",
+          },
+          {
+            title: "3. Contrata y califica",
+            text: "Coordina por chat, completa el trabajo y deja tu valoracion.",
+          },
+        ].map((item) => (
+          <Card key={item.title}>
+            <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+            <p className="mt-2 text-sm text-slate-600">{item.text}</p>
+          </Card>
+        ))}
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-4 py-16 md:px-6">
+        <Card className="flex flex-col gap-6 bg-gradient-to-r from-slate-900 to-slate-700 text-white md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold">Listo para resolver tu proximo servicio tecnico?</h2>
+            <p className="mt-2 max-w-xl text-slate-200">
+              Crea tu cuenta gratis y conecta con tecnicos confiables de forma profesional y segura.
+            </p>
+          </div>
+          <Link href="/registro">
+            <Button variant="secondary" className="bg-white text-slate-900 hover:bg-slate-100">
+              Empezar ahora
+            </Button>
+          </Link>
+        </Card>
+      </section>
     </div>
   );
 }

@@ -1,0 +1,136 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+type CategoryOption = {
+  id: string;
+  name: string;
+};
+
+type TechnicianOption = {
+  userId: string;
+  label: string;
+};
+
+export function ServiceRequestForm({
+  categories,
+  technicians,
+}: {
+  categories: CategoryOption[];
+  technicians: TechnicianOption[];
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    const formData = new FormData(event.currentTarget);
+
+    const payload = {
+      title: String(formData.get("title") ?? ""),
+      categoryId: String(formData.get("categoryId") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      city: String(formData.get("city") ?? ""),
+      zone: String(formData.get("zone") ?? ""),
+      locationReference: String(formData.get("locationReference") ?? ""),
+      desiredDate: formData.get("desiredDate")
+        ? new Date(String(formData.get("desiredDate"))).toISOString()
+        : undefined,
+      urgency: String(formData.get("urgency") ?? "MEDIUM"),
+      budgetMin: formData.get("budgetMin") ? Number(formData.get("budgetMin")) : undefined,
+      budgetMax: formData.get("budgetMax") ? Number(formData.get("budgetMax")) : undefined,
+      technicianId: String(formData.get("technicianId") ?? "") || undefined,
+    };
+
+    const response = await fetch("/api/service-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo crear la solicitud.");
+      setLoading(false);
+      return;
+    }
+
+    setMessage("Solicitud creada correctamente.");
+    (event.target as HTMLFormElement).reset();
+    router.refresh();
+    setLoading(false);
+  }
+
+  return (
+    <form className="space-y-3" onSubmit={onSubmit}>
+      <Input name="title" required placeholder="Titulo del problema o necesidad" />
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <select
+          name="categoryId"
+          required
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+        >
+          <option value="">Selecciona categoria</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          name="technicianId"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+        >
+          <option value="">Asignar luego / abierto</option>
+          {technicians.map((technician) => (
+            <option key={technician.userId} value={technician.userId}>
+              {technician.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <Textarea name="description" rows={4} required placeholder="Describe detalles del servicio" />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Input name="city" required placeholder="Ciudad" />
+        <Input name="zone" placeholder="Zona" />
+        <Input name="locationReference" placeholder="Referencia" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <Input name="desiredDate" type="datetime-local" />
+        <select
+          name="urgency"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+        >
+          <option value="LOW">Baja</option>
+          <option value="MEDIUM">Media</option>
+          <option value="HIGH">Alta</option>
+          <option value="URGENT">Urgente</option>
+        </select>
+        <Input name="budgetMin" type="number" min={0} placeholder="Presupuesto min" />
+        <Input name="budgetMax" type="number" min={0} placeholder="Presupuesto max" />
+      </div>
+
+      {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+      {message ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
+
+      <Button type="submit" disabled={loading} className="w-full md:w-auto">
+        {loading ? "Publicando..." : "Publicar solicitud"}
+      </Button>
+    </form>
+  );
+}
