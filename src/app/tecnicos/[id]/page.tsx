@@ -23,9 +23,8 @@ export default async function TecnicoDetallePage({
       user: {
         select: {
           id: true,
-          email: true,
-          phone: true,
           status: true,
+          isEmailVerified: true,
         },
       },
       services: {
@@ -48,7 +47,12 @@ export default async function TecnicoDetallePage({
     },
   });
 
-  if (!technician || technician.user.status !== "ACTIVE") {
+  if (
+    !technician ||
+    technician.user.status !== "ACTIVE" ||
+    !technician.user.isEmailVerified ||
+    technician.verification !== "VERIFIED"
+  ) {
     notFound();
   }
 
@@ -66,9 +70,7 @@ export default async function TecnicoDetallePage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={technician.verification === "VERIFIED" ? "success" : "warning"}>
-              {technician.verification === "VERIFIED" ? "Tecnico verificado" : "En revision"}
-            </Badge>
+            <Badge variant="success">Tecnico verificado</Badge>
             <FavoriteButton technicianProfileId={technician.id} />
             <StartChatButton recipientUserId={technician.user.id} />
           </div>

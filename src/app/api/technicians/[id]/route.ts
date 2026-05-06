@@ -13,9 +13,8 @@ export async function GET(
       user: {
         select: {
           id: true,
-          email: true,
-          phone: true,
           status: true,
+          isEmailVerified: true,
         },
       },
       services: {
@@ -38,13 +37,39 @@ export async function GET(
     },
   });
 
-  if (!technician || technician.user.status !== "ACTIVE") {
+  if (!technician || technician.user.status !== "ACTIVE" || !technician.user.isEmailVerified) {
+    return NextResponse.json({ error: "Tecnico no encontrado" }, { status: 404 });
+  }
+
+  if (technician.verification !== "VERIFIED") {
     return NextResponse.json({ error: "Tecnico no encontrado" }, { status: 404 });
   }
 
   return NextResponse.json({
     technician: {
-      ...technician,
+      id: technician.id,
+      userId: technician.userId,
+      displayName: technician.displayName,
+      businessName: technician.businessName,
+      city: technician.city,
+      workZone: technician.workZone,
+      description: technician.description,
+      yearsExperience: technician.yearsExperience,
+      availabilityText: technician.availabilityText,
+      scheduleText: technician.scheduleText,
+      avatarUrl: technician.avatarUrl,
+      galleryJson: technician.galleryJson,
+      referencePriceMin: technician.referencePriceMin,
+      referencePriceMax: technician.referencePriceMax,
+      averageRating: technician.averageRating,
+      totalReviews: technician.totalReviews,
+      completedJobs: technician.completedJobs,
+      verification: technician.verification,
+      categories: technician.services.map((service) => ({
+        id: service.category.id,
+        name: service.category.name,
+        slug: service.category.slug,
+      })),
       reviews: technician.reviews.map((review) => ({
         id: review.id,
         rating: review.rating,

@@ -1,19 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/auth/page";
+import { adminDashboardLinks } from "@/lib/dashboard-links";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { ReportStatusForm } from "@/components/forms/report-status-form";
-
-const adminLinks = [
-  { href: "/dashboard/admin", label: "Resumen" },
-  { href: "/dashboard/admin/usuarios", label: "Usuarios" },
-  { href: "/dashboard/admin/tecnicos", label: "Tecnicos" },
-  { href: "/dashboard/admin/categorias", label: "Categorias" },
-  { href: "/dashboard/admin/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/admin/reportes", label: "Reportes" },
-  { href: "/dashboard/admin/resenas", label: "Resenas" },
-  { href: "/dashboard/admin/moderacion", label: "Moderacion" },
-];
 
 export default async function AdminReportesPage() {
   await requirePageRole("ADMIN");
@@ -38,7 +28,11 @@ export default async function AdminReportesPage() {
   });
 
   return (
-    <DashboardShell title="Gestion de reportes" subtitle="Seguridad comunitaria y moderacion de casos." links={adminLinks}>
+    <DashboardShell
+      title="Gestion de reportes"
+      subtitle="Seguridad comunitaria y moderacion de casos."
+      links={[...adminDashboardLinks]}
+    >
       <div className="space-y-3">
         {reports.map((report) => (
           <Card key={report.id} className="space-y-3">

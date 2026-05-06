@@ -12,6 +12,56 @@ type CategoryOption = {
   name: string;
 };
 
+type FieldErrors = Record<string, string[]>;
+type ApiResponseData = {
+  error?: string;
+  message?: string;
+  previewToken?: string;
+  user?: {
+    role?: "CLIENT" | "TECHNICIAN" | "ADMIN";
+  };
+  issues?: {
+    fieldErrors?: FieldErrors;
+  };
+  emailVerification?: {
+    sent?: boolean;
+    warning?: string;
+  };
+};
+
+function getFirstFieldError(fieldErrors: FieldErrors, field: string) {
+  return fieldErrors[field]?.[0] ?? null;
+}
+
+async function readResponseData(response: Response): Promise<ApiResponseData> {
+  const raw = await response.text();
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as ApiResponseData;
+  } catch {
+    return {};
+  }
+}
+
+function FieldErrorBubble({ message }: { message?: string | null }) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className="relative mt-1">
+      <div className="inline-block rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 shadow-sm">
+        {message}
+      </div>
+      <span className="absolute -top-1 left-3 h-2 w-2 rotate-45 border-l border-t border-rose-200 bg-rose-50" />
+    </div>
+  );
+}
+
 export function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
@@ -27,38 +77,43 @@ export function LoginForm() {
     setError(null);
     setSuccess(null);
 
-    const formData = new FormData(event.currentTarget);
-    const payload = {
-      email: String(formData.get("email") ?? ""),
-      password: String(formData.get("password") ?? ""),
-    };
+    try {
+      const formData = new FormData(event.currentTarget);
+      const payload = {
+        email: String(formData.get("email") ?? ""),
+        password: String(formData.get("password") ?? ""),
+      };
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
+      const data = await readResponseData(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "No fue posible iniciar sesion");
+      if (!response.ok) {
+        setError(data.error ?? "No fue posible iniciar sesion");
+        return;
+      }
+
+      setSuccess("Sesion iniciada correctamente.");
+
+      const role = data.user?.role ?? "CLIENT";
+      const destination =
+        role === "CLIENT"
+          ? "/dashboard/cliente"
+          : role === "TECHNICIAN"
+            ? "/dashboard/tecnico"
+            : "/dashboard/admin";
+
+      router.push(destination);
+      router.refresh();
+    } catch {
+      setError("No se pudo iniciar sesion en este momento. Intenta nuevamente.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSuccess("Sesion iniciada correctamente.");
-
-    const role = data.user?.role as "CLIENT" | "TECHNICIAN" | "ADMIN";
-    const destination =
-      role === "CLIENT"
-        ? "/dashboard/cliente"
-        : role === "TECHNICIAN"
-          ? "/dashboard/tecnico"
-          : "/dashboard/admin";
-
-    router.push(destination);
-    router.refresh();
   }
 
   return (
@@ -123,55 +178,105 @@ function ClientRegisterForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
+    setFieldErrors({});
 
-    const formData = new FormData(event.currentTarget);
+    try {
+      const formData = new FormData(event.currentTarget);
 
-    const response = await fetch("/api/auth/register-client", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fullName: String(formData.get("fullName") ?? ""),
-        email: String(formData.get("email") ?? ""),
-        phone: String(formData.get("phone") ?? ""),
-        city: String(formData.get("city") ?? ""),
-        zone: String(formData.get("zone") ?? ""),
-        password: String(formData.get("password") ?? ""),
-        bio: String(formData.get("bio") ?? ""),
-      }),
-    });
+      const response = await fetch("/api/auth/register-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: String(formData.get("fullName") ?? ""),
+          email: String(formData.get("email") ?? ""),
+          phone: String(formData.get("phone") ?? ""),
+          birthDate: String(formData.get("birthDate") ?? ""),
+          confirmedAdult: formData.get("confirmedAdult") === "on",
+          city: String(formData.get("city") ?? ""),
+          zone: String(formData.get("zone") ?? ""),
+          password: String(formData.get("password") ?? ""),
+          bio: String(formData.get("bio") ?? ""),
+          identityDocumentNumber: String(formData.get("identityDocumentNumber") ?? "") || undefined,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await readResponseData(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "No se pudo crear la cuenta.");
+      if (!response.ok) {
+        if (data.issues?.fieldErrors) {
+          setFieldErrors(data.issues.fieldErrors);
+        }
+        setError(data.error ?? "No se pudo crear la cuenta.");
+        return;
+      }
+
+      setMessage("Cuenta creada exitosamente.");
+      const destination = data.emailVerification?.warning
+        ? "/dashboard/cliente?email_notice=delivery_failed"
+        : "/dashboard/cliente";
+      router.push(destination);
+      router.refresh();
+    } catch {
+      setError("No se pudo completar el registro. Intenta nuevamente.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setMessage("Cuenta creada exitosamente.");
-    router.push("/dashboard/cliente");
-    router.refresh();
   }
 
   return (
     <Card className="mx-auto w-full max-w-lg space-y-4">
       <h2 className="text-xl font-semibold text-slate-900">Registro de cliente</h2>
       <form className="space-y-3" onSubmit={onSubmit}>
-        <Input name="fullName" required placeholder="Nombre completo" />
-        <Input name="email" type="email" required placeholder="Correo" />
-        <Input name="phone" required placeholder="Telefono" />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input name="city" required placeholder="Ciudad" />
-          <Input name="zone" placeholder="Zona" />
+        <div>
+          <Input name="fullName" required placeholder="Nombre completo" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "fullName")} />
         </div>
-        <Input name="password" type="password" required placeholder="Contrasena" />
-        <Textarea name="bio" rows={3} placeholder="Cuentanos que servicios sueles necesitar" />
+        <div>
+          <Input name="email" type="email" required placeholder="Correo" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "email")} />
+        </div>
+        <div>
+          <Input name="phone" required placeholder="Telefono" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "phone")} />
+        </div>
+        <div>
+          <Input name="birthDate" type="date" required />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "birthDate")} />
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <Input name="city" required placeholder="Ciudad" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "city")} />
+          </div>
+          <div>
+            <Input name="zone" placeholder="Zona" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "zone")} />
+          </div>
+        </div>
+        <div>
+          <Input name="password" type="password" required placeholder="Contrasena" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "password")} />
+        </div>
+        <div>
+          <Input name="identityDocumentNumber" placeholder="Numero de cedula (opcional)" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "identityDocumentNumber")} />
+        </div>
+        <div>
+          <Textarea name="bio" rows={3} placeholder="Cuentanos que servicios sueles necesitar" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "bio")} />
+        </div>
+        <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <input name="confirmedAdult" type="checkbox" required className="mt-0.5" />
+          Confirmo que soy mayor de 18 anos.
+        </label>
+        <FieldErrorBubble message={getFirstFieldError(fieldErrors, "confirmedAdult")} />
 
         {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
         {message ? (
@@ -192,6 +297,7 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const sortedCategories = useMemo(() => [...categories].sort((a, b) => a.name.localeCompare(b.name)), [categories]);
 
@@ -206,6 +312,7 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
     setLoading(true);
     setError(null);
     setMessage(null);
+    setFieldErrors({});
 
     if (!selected.length) {
       setError("Selecciona al menos una categoria.");
@@ -214,12 +321,24 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
     }
 
     const formData = new FormData(event.currentTarget);
+    const workEvidenceUrls = String(formData.get("workEvidenceUrls") ?? "")
+      .split(/[\n,]/g)
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const certificationUrls = String(formData.get("certificationUrls") ?? "")
+      .split(/[\n,]/g)
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const referencePriceMinValue = String(formData.get("referencePriceMin") ?? "").trim();
+    const referencePriceMaxValue = String(formData.get("referencePriceMax") ?? "").trim();
 
     const payload = {
       displayName: String(formData.get("displayName") ?? ""),
       businessName: String(formData.get("businessName") ?? ""),
       email: String(formData.get("email") ?? ""),
       phone: String(formData.get("phone") ?? ""),
+      birthDate: String(formData.get("birthDate") ?? ""),
+      confirmedAdult: formData.get("confirmedAdult") === "on",
       city: String(formData.get("city") ?? ""),
       workZone: String(formData.get("workZone") ?? ""),
       password: String(formData.get("password") ?? ""),
@@ -227,29 +346,44 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
       yearsExperience: Number(formData.get("yearsExperience") ?? "0"),
       availabilityText: String(formData.get("availabilityText") ?? ""),
       scheduleText: String(formData.get("scheduleText") ?? ""),
-      referencePriceMin: Number(formData.get("referencePriceMin") ?? "0"),
-      referencePriceMax: Number(formData.get("referencePriceMax") ?? "0"),
-      documentUrl: String(formData.get("documentUrl") ?? ""),
+      referencePriceMin: referencePriceMinValue ? Number(referencePriceMinValue) : undefined,
+      referencePriceMax: referencePriceMaxValue ? Number(referencePriceMaxValue) : undefined,
+      avatarUrl: String(formData.get("avatarUrl") ?? ""),
+      identityDocumentUrl: String(formData.get("identityDocumentUrl") ?? ""),
+      workEvidenceUrls,
+      certificationUrls: certificationUrls.length ? certificationUrls : undefined,
+      policeRecordUrl: String(formData.get("policeRecordUrl") ?? "") || undefined,
       categoryIds: selected,
     };
 
-    const response = await fetch("/api/auth/register-technician", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch("/api/auth/register-technician", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
+      const data = await readResponseData(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "No se pudo crear la cuenta tecnica.");
+      if (!response.ok) {
+        if (data.issues?.fieldErrors) {
+          setFieldErrors(data.issues.fieldErrors);
+        }
+        setError(data.error ?? "No se pudo crear la cuenta tecnica.");
+        return;
+      }
+
+      setMessage("Perfil tecnico creado correctamente.");
+      const destination = data.emailVerification?.warning
+        ? "/dashboard/tecnico?email_notice=delivery_failed"
+        : "/dashboard/tecnico";
+      router.push(destination);
+      router.refresh();
+    } catch {
+      setError("No se pudo completar el registro tecnico. Intenta nuevamente.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setMessage("Perfil tecnico creado correctamente.");
-    router.push("/dashboard/tecnico");
-    router.refresh();
   }
 
   return (
@@ -257,42 +391,119 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
       <h2 className="text-xl font-semibold text-slate-900">Registro tecnico</h2>
       <form className="space-y-3" onSubmit={onSubmit}>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input name="displayName" required placeholder="Nombre o marca" />
-          <Input name="businessName" placeholder="Nombre del negocio (opcional)" />
+          <div>
+            <Input name="displayName" required placeholder="Nombre o marca" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "displayName")} />
+          </div>
+          <div>
+            <Input name="businessName" placeholder="Nombre del negocio (opcional)" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "businessName")} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input name="email" type="email" required placeholder="Correo" />
-          <Input name="phone" required placeholder="Telefono" />
+          <div>
+            <Input name="email" type="email" required placeholder="Correo" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "email")} />
+          </div>
+          <div>
+            <Input name="phone" required placeholder="Telefono" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "phone")} />
+          </div>
+        </div>
+
+        <div>
+          <Input name="birthDate" type="date" required />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "birthDate")} />
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input name="city" required placeholder="Ciudad" />
-          <Input name="workZone" placeholder="Zona de trabajo" />
+          <div>
+            <Input name="city" required placeholder="Ciudad" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "city")} />
+          </div>
+          <div>
+            <Input name="workZone" placeholder="Zona de trabajo" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "workZone")} />
+          </div>
         </div>
 
-        <Textarea name="description" rows={3} required placeholder="Descripcion profesional" />
+        <div>
+          <Textarea name="description" rows={3} required placeholder="Descripcion profesional" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "description")} />
+        </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <Input
-            name="yearsExperience"
-            type="number"
-            min={0}
-            max={60}
-            required
-            placeholder="Anios experiencia"
-          />
-          <Input name="availabilityText" placeholder="Disponibilidad" />
-          <Input name="scheduleText" placeholder="Horario" />
+          <div>
+            <Input
+              name="yearsExperience"
+              type="number"
+              min={0}
+              max={60}
+              required
+              placeholder="Anios experiencia"
+            />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "yearsExperience")} />
+          </div>
+          <div>
+            <Input name="availabilityText" placeholder="Disponibilidad" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "availabilityText")} />
+          </div>
+          <div>
+            <Input name="scheduleText" placeholder="Horario" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "scheduleText")} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input name="referencePriceMin" type="number" min={0} placeholder="Precio referencial minimo" />
-          <Input name="referencePriceMax" type="number" min={0} placeholder="Precio referencial maximo" />
+          <div>
+            <Input name="referencePriceMin" type="number" min={0} placeholder="Precio referencial minimo" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "referencePriceMin")} />
+          </div>
+          <div>
+            <Input name="referencePriceMax" type="number" min={0} placeholder="Precio referencial maximo" />
+            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "referencePriceMax")} />
+          </div>
         </div>
 
-        <Input name="documentUrl" placeholder="URL de documento para verificacion (opcional)" />
-        <Input name="password" type="password" required placeholder="Contrasena" />
+        <div>
+          <Input name="avatarUrl" required placeholder="URL de foto de perfil" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "avatarUrl")} />
+        </div>
+        <div>
+          <Input name="identityDocumentUrl" required placeholder="URL de documento de identidad" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "identityDocumentUrl")} />
+        </div>
+        <div>
+          <Textarea
+            name="workEvidenceUrls"
+            rows={3}
+            required
+            placeholder="URLs de evidencias de trabajo (separa por coma o salto de linea)"
+          />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "workEvidenceUrls")} />
+        </div>
+        <div>
+          <Textarea
+            name="certificationUrls"
+            rows={2}
+            placeholder="URLs de certificaciones (opcional, separa por coma o salto de linea)"
+          />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "certificationUrls")} />
+        </div>
+        <div>
+          <Input name="policeRecordUrl" placeholder="URL de record policial (opcional)" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "policeRecordUrl")} />
+        </div>
+        <div>
+          <Input name="password" type="password" required placeholder="Contrasena" />
+          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "password")} />
+        </div>
+        <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <input name="confirmedAdult" type="checkbox" required className="mt-0.5" />
+          Confirmo que soy mayor de 18 anos.
+        </label>
+        <FieldErrorBubble message={getFirstFieldError(fieldErrors, "confirmedAdult")} />
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-slate-700">Categorias de servicio</p>
@@ -341,29 +552,33 @@ export function ForgotPasswordForm({ token }: { token?: string }) {
     setError(null);
     setMessage(null);
 
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "");
+    try {
+      const formData = new FormData(event.currentTarget);
+      const email = String(formData.get("email") ?? "");
 
-    const response = await fetch("/api/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
-    const data = await response.json();
+      const data = await readResponseData(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "No se pudo procesar la solicitud.");
+      if (!response.ok) {
+        setError(data.error ?? "No se pudo procesar la solicitud.");
+        return;
+      }
+
+      setMessage(
+        data.previewToken
+          ? `Instruccion enviada. Token de prueba: ${data.previewToken}`
+          : "Si el correo existe, enviamos instrucciones.",
+      );
+    } catch {
+      setError("No se pudo procesar la solicitud en este momento.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setMessage(
-      data.previewToken
-        ? `Instruccion enviada. Token de prueba: ${data.previewToken}`
-        : "Si el correo existe, enviamos instrucciones.",
-    );
-    setLoading(false);
   }
 
   async function onResetPassword(event: FormEvent<HTMLFormElement>) {
@@ -372,28 +587,32 @@ export function ForgotPasswordForm({ token }: { token?: string }) {
     setError(null);
     setMessage(null);
 
-    const formData = new FormData(event.currentTarget);
-    const password = String(formData.get("password") ?? "");
+    try {
+      const formData = new FormData(event.currentTarget);
+      const password = String(formData.get("password") ?? "");
 
-    const response = await fetch("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token,
-        password,
-      }),
-    });
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          password,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await readResponseData(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "No se pudo actualizar la contrasena.");
+      if (!response.ok) {
+        setError(data.error ?? "No se pudo actualizar la contrasena.");
+        return;
+      }
+
+      setMessage("Contrasena actualizada correctamente. Ya puedes iniciar sesion.");
+    } catch {
+      setError("No se pudo actualizar la contrasena en este momento.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setMessage("Contrasena actualizada correctamente. Ya puedes iniciar sesion.");
-    setLoading(false);
   }
 
   return (

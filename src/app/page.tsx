@@ -21,7 +21,8 @@ export default async function Home() {
     }),
     prisma.technicianProfile.findMany({
       where: {
-        user: { status: "ACTIVE" },
+        user: { status: "ACTIVE", isEmailVerified: true },
+        verification: "VERIFIED",
       },
       orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
       take: 6,

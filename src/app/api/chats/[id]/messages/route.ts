@@ -66,6 +66,13 @@ export async function POST(
   const auth = await requireAuth();
   if (auth.error || !auth.user) return auth.error;
 
+  if (!auth.user.isEmailVerified) {
+    return NextResponse.json(
+      { error: "Debes verificar tu correo para enviar mensajes." },
+      { status: 403 },
+    );
+  }
+
   const { id } = await context.params;
 
   const participant = await assertParticipant(id, auth.user.id);

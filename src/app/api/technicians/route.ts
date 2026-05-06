@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   const query = params.get("q")?.trim();
   const city = params.get("city")?.trim();
   const category = params.get("category")?.trim();
-  const verification = params.get("verification")?.trim();
   const sort = params.get("sort")?.trim() ?? "relevance";
   const homeService = params.get("homeService")?.trim();
   const minRating = params.get("minRating") ? Number(params.get("minRating")) : undefined;
@@ -15,7 +14,8 @@ export async function GET(request: NextRequest) {
   const maxPrice = params.get("maxPrice") ? Number(params.get("maxPrice")) : undefined;
 
   const where: Record<string, unknown> = {
-    user: { status: "ACTIVE" },
+    user: { status: "ACTIVE", isEmailVerified: true },
+    verification: "VERIFIED",
   };
 
   if (query) {
@@ -28,10 +28,6 @@ export async function GET(request: NextRequest) {
 
   if (city) {
     where.city = { contains: city, mode: "insensitive" };
-  }
-
-  if (verification === "verified") {
-    where.verification = "VERIFIED";
   }
 
   if (homeService === "true") {
@@ -72,13 +68,6 @@ export async function GET(request: NextRequest) {
   const technicians = await prisma.technicianProfile.findMany({
     where,
     include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          phone: true,
-        },
-      },
       services: {
         include: {
           category: true,

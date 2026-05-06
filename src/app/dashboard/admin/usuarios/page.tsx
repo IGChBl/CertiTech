@@ -1,19 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/auth/page";
+import { adminDashboardLinks } from "@/lib/dashboard-links";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const adminLinks = [
-  { href: "/dashboard/admin", label: "Resumen" },
-  { href: "/dashboard/admin/usuarios", label: "Usuarios" },
-  { href: "/dashboard/admin/tecnicos", label: "Tecnicos" },
-  { href: "/dashboard/admin/categorias", label: "Categorias" },
-  { href: "/dashboard/admin/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/admin/reportes", label: "Reportes" },
-  { href: "/dashboard/admin/resenas", label: "Resenas" },
-  { href: "/dashboard/admin/moderacion", label: "Moderacion" },
-];
+import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 
 export default async function AdminUsuariosPage() {
   await requirePageRole("ADMIN");
@@ -29,7 +20,11 @@ export default async function AdminUsuariosPage() {
   });
 
   return (
-    <DashboardShell title="Gestion de usuarios" subtitle="Busqueda y monitoreo de cuentas registradas." links={adminLinks}>
+    <DashboardShell
+      title="Gestion de usuarios"
+      subtitle="Busqueda y monitoreo de cuentas registradas."
+      links={[...adminDashboardLinks]}
+    >
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
@@ -37,24 +32,47 @@ export default async function AdminUsuariosPage() {
               <th className="px-2 py-2">Correo</th>
               <th className="px-2 py-2">Rol</th>
               <th className="px-2 py-2">Nombre</th>
+              <th className="px-2 py-2">Correo verificado</th>
+              <th className="px-2 py-2">Verificacion</th>
               <th className="px-2 py-2">Estado</th>
               <th className="px-2 py-2">Creado</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-slate-100">
-                <td className="px-2 py-2 text-slate-700">{user.email}</td>
-                <td className="px-2 py-2 text-slate-700">{user.role.code}</td>
-                <td className="px-2 py-2 text-slate-700">
-                  {user.clientProfile?.fullName ?? user.technicianProfile?.displayName ?? "-"}
-                </td>
-                <td className="px-2 py-2">
-                  <Badge variant={user.status === "ACTIVE" ? "success" : "warning"}>{user.status}</Badge>
-                </td>
-                <td className="px-2 py-2 text-slate-500">{new Date(user.createdAt).toLocaleDateString("es-NI")}</td>
-              </tr>
-            ))}
+            {users.map((user) => {
+              const verificationStatus =
+                user.role.code === "CLIENT"
+                  ? user.clientProfile?.verificationStatus
+                  : user.role.code === "TECHNICIAN"
+                    ? user.technicianProfile?.verification
+                    : null;
+
+              return (
+                <tr key={user.id} className="border-b border-slate-100">
+                  <td className="px-2 py-2 text-slate-700">{user.email}</td>
+                  <td className="px-2 py-2 text-slate-700">{user.role.code}</td>
+                  <td className="px-2 py-2 text-slate-700">
+                    {user.clientProfile?.fullName ?? user.technicianProfile?.displayName ?? "-"}
+                  </td>
+                  <td className="px-2 py-2">
+                    <Badge variant={user.isEmailVerified ? "success" : "warning"}>{user.isEmailVerified ? "Si" : "No"}</Badge>
+                  </td>
+                  <td className="px-2 py-2">
+                    {verificationStatus ? (
+                      <Badge variant={getVerificationColor(verificationStatus)}>
+                        {getVerificationLabel(verificationStatus)}
+                      </Badge>
+                    ) : (
+                      <span className="text-slate-500">-</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">
+                    <Badge variant={user.status === "ACTIVE" ? "success" : "warning"}>{user.status}</Badge>
+                  </td>
+                  <td className="px-2 py-2 text-slate-500">{new Date(user.createdAt).toLocaleDateString("es-NI")}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Card>

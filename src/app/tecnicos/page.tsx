@@ -9,7 +9,6 @@ type SearchParams = {
   q?: SearchParamValue;
   city?: SearchParamValue;
   category?: SearchParamValue;
-  verification?: SearchParamValue;
 };
 
 function toStringValue(value: SearchParamValue) {
@@ -29,7 +28,6 @@ export default async function TecnicosPage({
   const query = toStringValue(params.q);
   const city = toStringValue(params.city);
   const category = toStringValue(params.category);
-  const verification = toStringValue(params.verification);
 
   const categories = await prisma.serviceCategory.findMany({
     where: { isActive: true },
@@ -38,7 +36,8 @@ export default async function TecnicosPage({
 
   const technicians = await prisma.technicianProfile.findMany({
     where: {
-      user: { status: "ACTIVE" },
+      user: { status: "ACTIVE", isEmailVerified: true },
+      verification: "VERIFIED",
       ...(query
         ? {
             OR: [
@@ -49,7 +48,6 @@ export default async function TecnicosPage({
           }
         : {}),
       ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
-      ...(verification === "verified" ? { verification: "VERIFIED" } : {}),
       ...(category
         ? {
             services: {
@@ -78,7 +76,7 @@ export default async function TecnicosPage({
       />
 
       <Card>
-        <form className="grid gap-3 md:grid-cols-5" action="/tecnicos" method="get">
+        <form className="grid gap-3 md:grid-cols-4" action="/tecnicos" method="get">
           <input
             name="q"
             placeholder="Nombre o servicio"
@@ -102,14 +100,6 @@ export default async function TecnicosPage({
                 {item.name}
               </option>
             ))}
-          </select>
-          <select
-            name="verification"
-            defaultValue={verification}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
-          >
-            <option value="">Todos</option>
-            <option value="verified">Solo verificados</option>
           </select>
           <button className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white">Aplicar</button>
         </form>

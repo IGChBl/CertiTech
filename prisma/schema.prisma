@@ -19,10 +19,18 @@ enum UserStatus {
   DELETED
 }
 
-enum VerificationStatus {
-  UNVERIFIED
+enum ClientVerificationStatus {
+  PENDING
+  BASIC_VERIFIED
+  VERIFIED
+  REJECTED
+}
+
+enum TechnicianVerificationStatus {
+  PENDING
   IN_REVIEW
   VERIFIED
+  REJECTED
 }
 
 enum RequestUrgency {
@@ -111,6 +119,7 @@ model User {
   email           String     @unique
   passwordHash    String
   phone           String?
+  birthDate       DateTime?
   isEmailVerified Boolean    @default(false)
   emailVerifiedAt DateTime?
   status          UserStatus @default(ACTIVE)
@@ -136,6 +145,8 @@ model User {
   adminActions          AdminAction[]            @relation("AdminActionAdmin")
   moderatedReports      Report[]                 @relation("ReportReviewer")
   moderatedReviews      Review[]                 @relation("ReviewModerator")
+  verifiedClients       ClientProfile[]          @relation("ClientProfileVerifiedBy")
+  verifiedTechnicians   TechnicianProfile[]      @relation("TechnicianProfileVerifiedBy")
   passwordResetTokens   PasswordResetToken[]
   emailVerification     EmailVerificationToken[]
   chatsCreated          Chat[]                   @relation("ChatCreatedBy")
@@ -146,45 +157,63 @@ model User {
 }
 
 model ClientProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  fullName  String
-  city      String
-  zone      String?
-  address   String?
-  avatarUrl String?
-  bio       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                     String                   @id @default(cuid())
+  userId                 String                   @unique
+  fullName               String
+  city                   String
+  zone                   String?
+  address                String?
+  avatarUrl              String?
+  bio                    String?
+  identityDocumentNumber String?
+  identityDocumentUrl    String?
+  verificationStatus     ClientVerificationStatus @default(PENDING)
+  rejectionReason        String?
+  verificationNote       String?
+  verifiedAt             DateTime?
+  verifiedById           String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifiedBy User? @relation("ClientProfileVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([verificationStatus])
 }
 
 model TechnicianProfile {
-  id                String             @id @default(cuid())
-  userId            String             @unique
-  displayName       String
-  businessName      String?
-  city              String
-  workZone          String?
-  description       String
-  yearsExperience   Int                @default(0)
-  availabilityText  String?
-  scheduleText      String?
-  avatarUrl         String?
-  galleryJson       Json?
-  referencePriceMin Int?
-  referencePriceMax Int?
-  isHomeService     Boolean            @default(true)
-  verification      VerificationStatus @default(UNVERIFIED)
-  verifiedAt        DateTime?
-  completedJobs     Int                @default(0)
-  averageRating     Float              @default(0)
-  totalReviews      Int                @default(0)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                  String                       @id @default(cuid())
+  userId              String                       @unique
+  displayName         String
+  businessName        String?
+  city                String
+  workZone            String?
+  description         String
+  yearsExperience     Int                          @default(0)
+  availabilityText    String?
+  scheduleText        String?
+  avatarUrl           String?
+  identityDocumentUrl String?
+  galleryJson         Json?
+  workEvidenceJson    Json?
+  certificationsJson  Json?
+  policeRecordUrl     String?
+  referencePriceMin   Int?
+  referencePriceMax   Int?
+  isHomeService       Boolean                      @default(true)
+  verification        TechnicianVerificationStatus @default(PENDING)
+  rejectionReason     String?
+  verificationNote    String?
+  verifiedAt          DateTime?
+  verifiedById        String?
+  completedJobs       Int                          @default(0)
+  averageRating       Float                        @default(0)
+  totalReviews        Int                          @default(0)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
 
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifiedBy           User?                 @relation("TechnicianProfileVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
   services             TechnicianService[]
   reviews              Review[]
   favorites            Favorite[]

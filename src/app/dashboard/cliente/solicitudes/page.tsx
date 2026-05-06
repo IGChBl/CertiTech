@@ -16,6 +16,14 @@ const clientLinks = [
 
 export default async function ClienteSolicitudesPage() {
   const user = await requirePageRole("CLIENT");
+  const clientStatus = user.clientProfile?.verificationStatus ?? "PENDING";
+  const canCreateRequests =
+    user.isEmailVerified && (clientStatus === "BASIC_VERIFIED" || clientStatus === "VERIFIED");
+
+  const restrictionMessage =
+    clientStatus === "REJECTED"
+      ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
+      : "Tu cuenta esta pendiente de verificacion. Algunas funciones estaran limitadas hasta completar el proceso.";
 
   const [categories, technicians, requests] = await Promise.all([
     prisma.serviceCategory.findMany({
@@ -24,7 +32,7 @@ export default async function ClienteSolicitudesPage() {
       select: { id: true, name: true },
     }),
     prisma.technicianProfile.findMany({
-      where: { user: { status: "ACTIVE" } },
+      where: { user: { status: "ACTIVE", isEmailVerified: true }, verification: "VERIFIED" },
       orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
       take: 20,
       select: { userId: true, displayName: true, businessName: true },
@@ -46,13 +54,17 @@ export default async function ClienteSolicitudesPage() {
     >
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Crear solicitud</h2>
-        <ServiceRequestForm
-          categories={categories}
-          technicians={technicians.map((item) => ({
-            userId: item.userId,
-            label: item.businessName ? `${item.displayName} - ${item.businessName}` : item.displayName,
-          }))}
-        />
+        {canCreateRequests ? (
+          <ServiceRequestForm
+            categories={categories}
+            technicians={technicians.map((item) => ({
+              userId: item.userId,
+              label: item.businessName ? `${item.displayName} - ${item.businessName}` : item.displayName,
+            }))}
+          />
+        ) : (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{restrictionMessage}</p>
+        )}
       </Card>
 
       <Card>

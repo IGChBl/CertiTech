@@ -24,6 +24,34 @@ export async function PATCH(
   const isOwner = serviceRequest.clientId === auth.user.id;
   const isAssignedTechnician = serviceRequest.technicianId === auth.user.id;
 
+  if (role === "CLIENT" && !auth.user.isEmailVerified) {
+    return NextResponse.json(
+      {
+        error: "Debes verificar tu correo para gestionar solicitudes.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (role === "TECHNICIAN" && !auth.user.isEmailVerified) {
+    return NextResponse.json(
+      {
+        error: "Debes verificar tu correo para gestionar solicitudes.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (role === "TECHNICIAN" && auth.user.technicianProfile?.verification !== "VERIFIED") {
+    return NextResponse.json(
+      {
+        error:
+          "Tu perfil esta en revision. Podras aparecer en busquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
+      },
+      { status: 403 },
+    );
+  }
+
   if (role !== "ADMIN" && !isOwner && !isAssignedTechnician) {
     if (!(role === "TECHNICIAN" && !serviceRequest.technicianId)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });

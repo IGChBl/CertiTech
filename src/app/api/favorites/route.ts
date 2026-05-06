@@ -7,17 +7,33 @@ export async function GET() {
   if (auth.error || !auth.user) return auth.error;
 
   const favorites = await prisma.favorite.findMany({
-    where: { clientId: auth.user.id },
+    where: {
+      clientId: auth.user.id,
+      technicianProfile: {
+        user: { status: "ACTIVE", isEmailVerified: true },
+        verification: "VERIFIED",
+      },
+    },
     include: {
       technicianProfile: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              phone: true,
-            },
-          },
+        select: {
+          id: true,
+          userId: true,
+          displayName: true,
+          businessName: true,
+          city: true,
+          workZone: true,
+          description: true,
+          yearsExperience: true,
+          availabilityText: true,
+          avatarUrl: true,
+          averageRating: true,
+          totalReviews: true,
+          completedJobs: true,
+          verification: true,
+          referencePriceMin: true,
+          referencePriceMax: true,
+          isHomeService: true,
           services: {
             include: {
               category: true,
@@ -36,11 +52,18 @@ export async function POST(request: NextRequest) {
   const auth = await requireRole("CLIENT");
   if (auth.error || !auth.user) return auth.error;
 
+  if (!auth.user.isEmailVerified) {
+    return NextResponse.json(
+      { error: "Debes verificar tu correo para gestionar favoritos." },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const technicianProfileId = body?.technicianProfileId as string | undefined;
 
   if (!technicianProfileId) {
-    return NextResponse.json({ error: "tecnicianProfileId es requerido" }, { status: 400 });
+    return NextResponse.json({ error: "technicianProfileId es requerido" }, { status: 400 });
   }
 
   const existing = await prisma.favorite.findUnique({
@@ -57,6 +80,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ isFavorite: false, message: "Eliminado de favoritos" });
   }
 
+  const technician = await prisma.technicianProfile.findFirst({
+    where: {
+      id: technicianProfileId,
+      verification: "VERIFIED",
+      user: { status: "ACTIVE", isEmailVerified: true },
+    },
+    select: { id: true },
+  });
+
+  if (!technician) {
+    return NextResponse.json({ error: "Solo puedes guardar tecnicos verificados y activos." }, { status: 400 });
+  }
+
   await prisma.favorite.create({
     data: {
       clientId: auth.user.id,
@@ -71,11 +107,18 @@ export async function DELETE(request: NextRequest) {
   const auth = await requireRole("CLIENT");
   if (auth.error || !auth.user) return auth.error;
 
+  if (!auth.user.isEmailVerified) {
+    return NextResponse.json(
+      { error: "Debes verificar tu correo para gestionar favoritos." },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const technicianProfileId = body?.technicianProfileId as string | undefined;
 
   if (!technicianProfileId) {
-    return NextResponse.json({ error: "tecnicianProfileId es requerido" }, { status: 400 });
+    return NextResponse.json({ error: "technicianProfileId es requerido" }, { status: 400 });
   }
 
   await prisma.favorite.deleteMany({

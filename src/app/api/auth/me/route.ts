@@ -13,6 +13,8 @@ export async function GET() {
       id: user.id,
       email: user.email,
       role: user.role.code,
+      isEmailVerified: user.isEmailVerified,
+      emailVerifiedAt: user.emailVerifiedAt,
       profile:
         user.role.code === "CLIENT"
           ? user.clientProfile

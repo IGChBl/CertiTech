@@ -16,7 +16,13 @@ export async function GET(request: NextRequest) {
     include: {
       client: {
         include: {
-          clientProfile: true,
+          clientProfile: {
+            select: {
+              fullName: true,
+              city: true,
+              avatarUrl: true,
+            },
+          },
         },
       },
     },
@@ -30,6 +36,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireRole("CLIENT");
   if (auth.error || !auth.user) return auth.error;
+
+  if (!auth.user.isEmailVerified) {
+    return NextResponse.json(
+      { error: "Debes verificar tu correo para publicar valoraciones." },
+      { status: 403 },
+    );
+  }
 
   const body = await request.json().catch(() => null);
 

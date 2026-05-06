@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 
 type TechnicianCardProps = {
   technician: {
@@ -16,21 +17,13 @@ type TechnicianCardProps = {
     description: string;
     averageRating: number;
     totalReviews: number;
-    verification: "UNVERIFIED" | "IN_REVIEW" | "VERIFIED";
+    verification: "PENDING" | "IN_REVIEW" | "VERIFIED" | "REJECTED";
     referencePriceMin?: number | null;
     categories: string[];
   };
 };
 
-const verificationMap = {
-  UNVERIFIED: { label: "No verificado", variant: "neutral" as const },
-  IN_REVIEW: { label: "En revision", variant: "warning" as const },
-  VERIFIED: { label: "Verificado", variant: "success" as const },
-};
-
 export function TechnicianCard({ technician }: TechnicianCardProps) {
-  const verification = verificationMap[technician.verification];
-
   return (
     <Card className="flex h-full flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -38,7 +31,9 @@ export function TechnicianCard({ technician }: TechnicianCardProps) {
           <h3 className="text-lg font-semibold text-slate-900">{technician.displayName}</h3>
           {technician.businessName ? <p className="text-sm text-slate-600">{technician.businessName}</p> : null}
         </div>
-        <Badge variant={verification.variant}>{verification.label}</Badge>
+        <Badge variant={getVerificationColor(technician.verification)}>
+          {getVerificationLabel(technician.verification)}
+        </Badge>
       </div>
 
       <RatingStars rating={technician.averageRating} count={technician.totalReviews} />

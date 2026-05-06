@@ -1,19 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/auth/page";
+import { adminDashboardLinks } from "@/lib/dashboard-links";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { RatingStars } from "@/components/ui/rating-stars";
-
-const adminLinks = [
-  { href: "/dashboard/admin", label: "Resumen" },
-  { href: "/dashboard/admin/usuarios", label: "Usuarios" },
-  { href: "/dashboard/admin/tecnicos", label: "Tecnicos" },
-  { href: "/dashboard/admin/categorias", label: "Categorias" },
-  { href: "/dashboard/admin/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/admin/reportes", label: "Reportes" },
-  { href: "/dashboard/admin/resenas", label: "Resenas" },
-  { href: "/dashboard/admin/moderacion", label: "Moderacion" },
-];
 
 export default async function AdminResenasPage() {
   await requirePageRole("ADMIN");
@@ -32,7 +22,11 @@ export default async function AdminResenasPage() {
   });
 
   return (
-    <DashboardShell title="Gestion de resenas" subtitle="Monitorea reputacion y calidad del servicio." links={adminLinks}>
+    <DashboardShell
+      title="Gestion de resenas"
+      subtitle="Monitorea reputacion y calidad del servicio."
+      links={[...adminDashboardLinks]}
+    >
       <div className="space-y-3">
         {reviews.map((review) => (
           <Card key={review.id}>

@@ -16,7 +16,19 @@ export async function GET() {
         category: true,
         technician: {
           include: {
-            technicianProfile: true,
+            technicianProfile: {
+              select: {
+                id: true,
+                displayName: true,
+                businessName: true,
+                city: true,
+                workZone: true,
+                avatarUrl: true,
+                verification: true,
+                averageRating: true,
+                totalReviews: true,
+              },
+            },
           },
         },
         images: true,
@@ -29,7 +41,23 @@ export async function GET() {
   }
 
   if (role === "TECHNICIAN") {
+    if (!auth.user.isEmailVerified) {
+      return NextResponse.json({
+        requests: [],
+        message: "Debes verificar tu correo para gestionar solicitudes y contrataciones.",
+      });
+    }
+
     const profile = auth.user.technicianProfile;
+    const isVerifiedTechnician = profile?.verification === "VERIFIED";
+
+    if (!isVerifiedTechnician) {
+      return NextResponse.json({
+        requests: [],
+        message:
+          "Tu perfil esta en revision. Podras aparecer en busquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
+      });
+    }
 
     const requests = await prisma.serviceRequest.findMany({
       where: {
@@ -55,7 +83,16 @@ export async function GET() {
         category: true,
         client: {
           include: {
-            clientProfile: true,
+            clientProfile: {
+              select: {
+                id: true,
+                fullName: true,
+                city: true,
+                zone: true,
+                avatarUrl: true,
+                verificationStatus: true,
+              },
+            },
           },
         },
         images: true,
@@ -86,6 +123,26 @@ export async function POST(request: NextRequest) {
   const auth = await requireRole("CLIENT");
   if (auth.error || !auth.user) return auth.error;
 
+  const clientProfile = auth.user.clientProfile;
+  const canRequestService =
+    auth.user.isEmailVerified &&
+    !!clientProfile &&
+    (clientProfile.verificationStatus === "BASIC_VERIFIED" || clientProfile.verificationStatus === "VERIFIED");
+
+  if (!canRequestService) {
+    const errorMessage =
+      clientProfile?.verificationStatus === "REJECTED"
+        ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
+        : "Tu cuenta esta pendiente de verificacion. Algunas funciones estaran limitadas hasta completar el proceso.";
+
+    return NextResponse.json(
+      {
+        error: errorMessage,
+      },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   if (body?.budgetMin !== undefined && body.budgetMin !== "") {
@@ -103,6 +160,34 @@ export async function POST(request: NextRequest) {
   }
 
   const data = parsed.data;
+
+  if (data.technicianId) {
+    const technician = await prisma.user.findUnique({
+      where: { id: data.technicianId },
+      include: {
+        technicianProfile: {
+          select: {
+            verification: true,
+          },
+        },
+      },
+    });
+
+    const isAvailableTechnician =
+      technician &&
+      technician.status === "ACTIVE" &&
+      technician.isEmailVerified &&
+      technician.technicianProfile?.verification === "VERIFIED";
+
+    if (!isAvailableTechnician) {
+      return NextResponse.json(
+        {
+          error: "Solo puedes contratar tecnicos verificados, activos y con correo confirmado.",
+        },
+        { status: 400 },
+      );
+    }
+  }
 
   const created = await prisma.serviceRequest.create({
     data: {
