@@ -29,6 +29,7 @@ El proyecto esta construido como base MVP profesional, escalable y lista para ev
 - Validacion de mayoria de edad (18+) para cualquier registro
 - Verificacion de correo (flujo token)
 - Verificacion de cliente y tecnico con estados y restricciones de uso
+- Foto de perfil para cliente y tecnico con subida local y optimizacion automatica
 - Recuperacion y restablecimiento de contrasena
 - Perfil tecnico publico con reputacion, categorias y estado de verificacion
 - Directorio de tecnicos con filtros
@@ -78,7 +79,48 @@ Variables principales:
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
 - `MAIL_FROM`
 - `RESEND_API_KEY` (si `EMAIL_PROVIDER=resend`)
+- `UPLOAD_PROVIDER` (`local`, preparado para `cloudinary`, `supabase`, `s3`)
+- `UPLOAD_LOCAL_PATH` (por defecto `public/uploads`)
 - variables de upload/cloud y mapas (preparadas)
+
+## Sistema de foto de perfil
+
+CertiTech incluye un flujo completo para foto de perfil en cliente y tecnico:
+
+- Endpoint: `POST /api/profile/avatar` (subir/cambiar)
+- Endpoint: `DELETE /api/profile/avatar` (eliminar)
+- Provider actual: `UPLOAD_PROVIDER=local`
+- Carpeta local: `public/uploads/avatars`
+- Campo persistido: `avatarUrl` en `ClientProfile` y `TechnicianProfile`
+
+### Reglas de carga y optimizacion automatica
+
+- Formatos permitidos: JPG, JPEG, PNG, WEBP
+- Tamano maximo original: 8 MB
+- Procesamiento backend con `sharp`:
+  - resize a `400x400`
+  - recorte centrado (`cover`)
+  - conversion a WEBP optimizado
+- Peso final esperado aproximado: 100 KB a 500 KB segun imagen origen
+
+### Seguridad aplicada
+
+- Validacion de MIME type
+- Bloqueo de archivos fuera de formato permitido
+- Nombres de archivo unicos
+- Escritura en ruta controlada
+- Solo se guarda URL publica en DB (`/uploads/avatars/...`)
+- Eliminacion segura del avatar anterior al reemplazar
+
+### Migracion futura a Cloudinary / S3 / Supabase
+
+La capa de upload se centraliza en:
+
+- `src/lib/uploads/config.ts`
+- `src/lib/uploads/avatar-optimizer.ts`
+- `src/lib/services/avatar-upload.ts`
+
+Actualmente el provider `local` esta activo y los providers cloud quedan preparados para implementacion posterior sin romper el contrato del endpoint.
 
 ## Instalacion y ejecucion local
 
@@ -224,6 +266,14 @@ npm run db:seed
 - Completar campos obligatorios (documento, foto, evidencias, categorias, experiencia).
 - Confirmar que queda en `IN_REVIEW`.
 - Confirmar que no aparece en listado publico hasta aprobacion.
+
+6. Probar foto de perfil
+
+- Entrar a `Dashboard > Configuracion` de cliente o tecnico.
+- Subir imagen JPG/PNG/WEBP menor a 8 MB.
+- Confirmar vista previa y guardado exitoso.
+- Verificar persistencia en header, dashboard, chat, listados y panel admin.
+- Probar reemplazo y eliminacion de foto.
 
 5. Aprobar/rechazar desde admin
 
