@@ -6,6 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { getSubscriptionDaysRemaining } from "@/lib/subscriptions/service";
+import {
+  getSubscriptionPlanBadgeVariant,
+  getSubscriptionPlanLabel,
+  getSubscriptionStatusBadgeVariant,
+  getSubscriptionStatusLabel,
+} from "@/lib/subscriptions/ui";
 
 export default async function AdminTecnicosPage() {
   await requirePageRole("ADMIN");
@@ -19,8 +26,8 @@ export default async function AdminTecnicosPage() {
 
   return (
     <DashboardShell
-      title="Gestion de tecnicos"
-      subtitle="Verificacion, reputacion y estado operativo."
+      title="Gestión de técnicos"
+      subtitle="Verificación, reputación y estado operativo."
       links={[...adminDashboardLinks]}
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -35,12 +42,24 @@ export default async function AdminTecnicosPage() {
             </div>
             <p className="text-sm text-slate-500">{tech.city}</p>
             <p className="mt-1 text-xs text-slate-500">
-              Correo verificado: {tech.user.isEmailVerified ? "Si" : "No"}
+              Correo verificado: {tech.user.isEmailVerified ? "Sí" : "No"}
             </p>
             <div className="mt-3 flex items-center justify-between">
               <Badge variant={getVerificationColor(tech.verification)}>{getVerificationLabel(tech.verification)}</Badge>
               <p className="text-xs text-slate-500">{tech.averageRating.toFixed(1)} estrellas</p>
             </div>
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant={getSubscriptionPlanBadgeVariant(tech.subscriptionPlan)}>
+                {getSubscriptionPlanLabel(tech.subscriptionPlan)}
+              </Badge>
+              <Badge variant={getSubscriptionStatusBadgeVariant(tech.subscriptionStatus)}>
+                {getSubscriptionStatusLabel(tech.subscriptionStatus)}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Vence: {tech.subscriptionEndDate ? new Date(tech.subscriptionEndDate).toLocaleDateString("es-NI") : "No definido"}{" "}
+              | Días: {getSubscriptionDaysRemaining(tech.subscriptionEndDate) ?? "N/A"}
+            </p>
           </Card>
         ))}
       </div>

@@ -23,8 +23,8 @@ export default async function AdminResenasPage() {
 
   return (
     <DashboardShell
-      title="Gestion de resenas"
-      subtitle="Monitorea reputacion y calidad del servicio."
+      title="Gestión de reseñas"
+      subtitle="Monitorea reputación y calidad del servicio."
       links={[...adminDashboardLinks]}
     >
       <div className="space-y-3">

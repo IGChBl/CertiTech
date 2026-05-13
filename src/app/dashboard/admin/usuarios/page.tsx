@@ -6,6 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import {
+  getSubscriptionPlanBadgeVariant,
+  getSubscriptionPlanLabel,
+  getSubscriptionStatusBadgeVariant,
+  getSubscriptionStatusLabel,
+} from "@/lib/subscriptions/ui";
 
 export default async function AdminUsuariosPage() {
   await requirePageRole("ADMIN");
@@ -22,8 +28,8 @@ export default async function AdminUsuariosPage() {
 
   return (
     <DashboardShell
-      title="Gestion de usuarios"
-      subtitle="Busqueda y monitoreo de cuentas registradas."
+      title="Gestión de usuarios"
+      subtitle="Búsqueda y monitoreo de cuentas registradas."
       links={[...adminDashboardLinks]}
     >
       <Card className="overflow-x-auto">
@@ -34,7 +40,8 @@ export default async function AdminUsuariosPage() {
               <th className="px-2 py-2">Rol</th>
               <th className="px-2 py-2">Nombre</th>
               <th className="px-2 py-2">Correo verificado</th>
-              <th className="px-2 py-2">Verificacion</th>
+              <th className="px-2 py-2">Verificación</th>
+              <th className="px-2 py-2">Suscripción</th>
               <th className="px-2 py-2">Estado</th>
               <th className="px-2 py-2">Creado</th>
             </tr>
@@ -68,13 +75,27 @@ export default async function AdminUsuariosPage() {
                     {displayName}
                   </td>
                   <td className="px-2 py-2">
-                    <Badge variant={user.isEmailVerified ? "success" : "warning"}>{user.isEmailVerified ? "Si" : "No"}</Badge>
+                    <Badge variant={user.isEmailVerified ? "success" : "warning"}>{user.isEmailVerified ? "Sí" : "No"}</Badge>
                   </td>
                   <td className="px-2 py-2">
                     {verificationStatus ? (
                       <Badge variant={getVerificationColor(verificationStatus)}>
                         {getVerificationLabel(verificationStatus)}
                       </Badge>
+                    ) : (
+                      <span className="text-slate-500">-</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">
+                    {user.role.code === "TECHNICIAN" && user.technicianProfile ? (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant={getSubscriptionPlanBadgeVariant(user.technicianProfile.subscriptionPlan)}>
+                          {getSubscriptionPlanLabel(user.technicianProfile.subscriptionPlan)}
+                        </Badge>
+                        <Badge variant={getSubscriptionStatusBadgeVariant(user.technicianProfile.subscriptionStatus)}>
+                          {getSubscriptionStatusLabel(user.technicianProfile.subscriptionStatus)}
+                        </Badge>
+                      </div>
                     ) : (
                       <span className="text-slate-500">-</span>
                     )}

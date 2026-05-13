@@ -13,7 +13,7 @@ const clientLinks = [
   { href: "/dashboard/cliente/chats", label: "Mis chats" },
   { href: "/dashboard/cliente/favoritos", label: "Favoritos" },
   { href: "/dashboard/cliente/resenas", label: "Mis reseñas" },
-  { href: "/dashboard/cliente/configuracion", label: "Configuracion" },
+  { href: "/dashboard/cliente/configuracion", label: "Configuración" },
 ];
 
 export default async function ClienteDashboardPage({
@@ -29,8 +29,8 @@ export default async function ClienteDashboardPage({
     !emailVerified || (clientStatus !== "BASIC_VERIFIED" && clientStatus !== "VERIFIED");
   const alertMessage =
     clientStatus === "REJECTED"
-      ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
-      : "Tu cuenta esta pendiente de verificacion. Algunas funciones estaran limitadas hasta completar el proceso.";
+      ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
+      : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
   const showEmailDeliveryWarning = params.email_notice === "delivery_failed";
 
   const [requestsCount, favoritesCount, chatsCount, reviewsCount] = await Promise.all([
@@ -43,7 +43,7 @@ export default async function ClienteDashboardPage({
   return (
     <DashboardShell
       title={`Hola, ${user.clientProfile?.fullName ?? "cliente"}`}
-      subtitle="Administra tus solicitudes, conversaciones y tecnicos favoritos."
+      subtitle="Administra tus solicitudes, conversaciones y técnicos favoritos."
       links={clientLinks}
     >
       <Card className="space-y-2">
@@ -61,10 +61,10 @@ export default async function ClienteDashboardPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium text-slate-700">Correo verificado:</p>
-          <Badge variant={emailVerified ? "success" : "warning"}>{emailVerified ? "Si" : "No"}</Badge>
+          <Badge variant={emailVerified ? "success" : "warning"}>{emailVerified ? "Sí" : "No"}</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium text-slate-700">Estado de verificacion:</p>
+          <p className="text-sm font-medium text-slate-700">Estado de verificación:</p>
           <Badge variant={getVerificationColor(clientStatus)}>{getVerificationLabel(clientStatus)}</Badge>
         </div>
         {!emailVerified ? (
@@ -74,14 +74,14 @@ export default async function ClienteDashboardPage({
         ) : null}
         {showEmailDeliveryWarning ? (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Tu cuenta fue creada, pero no se pudo enviar el correo de verificacion. Usa el boton de reenvio.
+            Tu cuenta fue creada, pero no se pudo enviar el correo de verificación. Usa el botón de reenvío.
           </p>
         ) : null}
         {!emailVerified ? <ResendVerificationButton /> : null}
         {hasLimitedAccess ? (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{alertMessage}</p>
         ) : (
-          <p className="text-sm text-slate-600">Tu cuenta cumple validaciones minimas para contratar servicios.</p>
+          <p className="text-sm text-slate-600">Tu cuenta cumple validaciones mínimas para contratar servicios.</p>
         )}
       </Card>
 
@@ -90,7 +90,7 @@ export default async function ClienteDashboardPage({
           { label: "Solicitudes", value: requestsCount },
           { label: "Favoritos", value: favoritesCount },
           { label: "Chats", value: chatsCount },
-          { label: "Resenas escritas", value: reviewsCount },
+          { label: "Reseñas escritas", value: reviewsCount },
         ].map((item) => (
           <Card key={item.label}>
             <p className="text-sm text-slate-500">{item.label}</p>

@@ -4,16 +4,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { UserAvatar } from "@/components/ui/user-avatar";
-
-const technicianLinks = [
-  { href: "/dashboard/tecnico", label: "Resumen" },
-  { href: "/dashboard/tecnico/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/tecnico/trabajos", label: "Trabajos" },
-  { href: "/dashboard/tecnico/chats", label: "Chats" },
-  { href: "/dashboard/tecnico/valoraciones", label: "Valoraciones" },
-  { href: "/dashboard/tecnico/galeria", label: "Galeria" },
-  { href: "/dashboard/tecnico/configuracion", label: "Configuracion" },
-];
+import { technicianDashboardLinks } from "@/lib/dashboard-links";
 
 export default async function TecnicoValoracionesPage() {
   const user = await requirePageRole("TECHNICIAN");
@@ -33,7 +24,11 @@ export default async function TecnicoValoracionesPage() {
   });
 
   return (
-    <DashboardShell title="Mis valoraciones" subtitle="Reputacion construida con feedback real de clientes." links={technicianLinks}>
+    <DashboardShell
+      title="Mis valoraciones"
+      subtitle="Reputación construida con feedback real de clientes."
+      links={[...technicianDashboardLinks]}
+    >
       <div className="space-y-3">
         {reviews.map((review) => (
           <Card key={review.id}>
@@ -54,7 +49,7 @@ export default async function TecnicoValoracionesPage() {
           </Card>
         ))}
       </div>
-      {!reviews.length ? <Card>No tienes valoraciones registradas aun.</Card> : null}
+      {!reviews.length ? <Card>No tienes valoraciones registradas aún.</Card> : null}
     </DashboardShell>
   );
 }

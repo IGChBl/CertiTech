@@ -2,16 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/auth/page";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ChatPanel } from "@/components/chat/chat-panel";
-
-const technicianLinks = [
-  { href: "/dashboard/tecnico", label: "Resumen" },
-  { href: "/dashboard/tecnico/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/tecnico/trabajos", label: "Trabajos" },
-  { href: "/dashboard/tecnico/chats", label: "Chats" },
-  { href: "/dashboard/tecnico/valoraciones", label: "Valoraciones" },
-  { href: "/dashboard/tecnico/galeria", label: "Galeria" },
-  { href: "/dashboard/tecnico/configuracion", label: "Configuracion" },
-];
+import { technicianDashboardLinks } from "@/lib/dashboard-links";
 
 export default async function TecnicoChatsPage() {
   const user = await requirePageRole("TECHNICIAN");
@@ -45,7 +36,7 @@ export default async function TecnicoChatsPage() {
     <DashboardShell
       title="Chats con clientes"
       subtitle="Responde en tiempo real y coordina los detalles del servicio."
-      links={technicianLinks}
+      links={[...technicianDashboardLinks]}
     >
       <ChatPanel
         currentUserId={user.id}

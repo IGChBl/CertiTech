@@ -28,8 +28,8 @@ export default async function AdminSolicitudesPage() {
 
   return (
     <DashboardShell
-      title="Gestion de solicitudes"
-      subtitle="Monitorea el ciclo de contratacion completo."
+      title="Gestión de solicitudes"
+      subtitle="Monitorea el ciclo de contratación completo."
       links={[...adminDashboardLinks]}
     >
       <div className="space-y-3">
@@ -43,9 +43,9 @@ export default async function AdminSolicitudesPage() {
               Cliente: {request.client.clientProfile?.fullName ?? request.client.email}
             </p>
             <p className="text-sm text-slate-600">
-              Tecnico: {request.technician?.technicianProfile?.displayName ?? "Sin asignar"}
+              Técnico: {request.technician?.technicianProfile?.displayName ?? "Sin asignar"}
             </p>
-            <p className="text-xs text-slate-500">Categoria: {request.category.name}</p>
+            <p className="text-xs text-slate-500">Categoría: {request.category.name}</p>
           </Card>
         ))}
       </div>

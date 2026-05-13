@@ -11,7 +11,7 @@ const clientLinks = [
   { href: "/dashboard/cliente/chats", label: "Mis chats" },
   { href: "/dashboard/cliente/favoritos", label: "Favoritos" },
   { href: "/dashboard/cliente/resenas", label: "Mis reseñas" },
-  { href: "/dashboard/cliente/configuracion", label: "Configuracion" },
+  { href: "/dashboard/cliente/configuracion", label: "Configuración" },
 ];
 
 export default async function ClienteResenasPage() {
@@ -26,7 +26,7 @@ export default async function ClienteResenasPage() {
   });
 
   return (
-    <DashboardShell title="Mis resenas" subtitle="Historial de valoraciones realizadas." links={clientLinks}>
+    <DashboardShell title="Mis reseñas" subtitle="Historial de valoraciones realizadas." links={clientLinks}>
       <div className="space-y-3">
         {reviews.map((review) => (
           <Card key={review.id}>
@@ -45,7 +45,7 @@ export default async function ClienteResenasPage() {
           </Card>
         ))}
       </div>
-      {!reviews.length ? <Card>Aun no has realizado valoraciones.</Card> : null}
+      {!reviews.length ? <Card>Aún no has realizado valoraciones.</Card> : null}
     </DashboardShell>
   );
 }

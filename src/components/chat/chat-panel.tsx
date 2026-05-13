@@ -5,10 +5,11 @@ import { io, Socket } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 type ChatItem = {
   id: string;
-  participants: Array<{ userId: string; name: string }>;
+  participants: Array<{ userId: string; name: string; avatarUrl?: string | null }>;
   latestMessage?: { content?: string } | null;
 };
 
@@ -19,6 +20,7 @@ type ChatMessage = {
   sender: {
     id: string;
     name: string;
+    avatarUrl?: string | null;
   };
 };
 
@@ -95,6 +97,10 @@ export function ChatPanel({
   }, [activeChatId]);
 
   const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId), [chats, activeChatId]);
+  const activeOtherParticipant = useMemo(
+    () => activeChat?.participants.find((participant) => participant.userId !== currentUserId),
+    [activeChat, currentUserId],
+  );
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -139,10 +145,15 @@ export function ChatPanel({
                 onClick={() => setActiveChatId(chat.id)}
                 type="button"
               >
-                <p className="font-medium">{other?.name ?? "Conversacion"}</p>
-                <p className={`truncate text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>
-                  {chat.latestMessage?.content ?? "Sin mensajes"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <UserAvatar name={other?.name ?? "Conversación"} src={other?.avatarUrl} size={30} />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{other?.name ?? "Conversación"}</p>
+                    <p className={`truncate text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>
+                      {chat.latestMessage?.content ?? "Sin mensajes"}
+                    </p>
+                  </div>
+                </div>
               </button>
             );
           })}
@@ -152,29 +163,41 @@ export function ChatPanel({
       <Card className="flex min-h-[420px] flex-col p-0">
         <div className="border-b border-slate-200 px-4 py-3">
           <p className="text-sm font-semibold text-slate-900">
-            {activeChat
-              ? activeChat.participants.find((participant) => participant.userId !== currentUserId)?.name ??
-                "Conversacion"
-              : "Selecciona una conversacion"}
+            {activeChat ? (
+              <span className="flex items-center gap-2">
+                <UserAvatar name={activeOtherParticipant?.name} src={activeOtherParticipant?.avatarUrl} size={28} />
+                {activeOtherParticipant?.name ?? "Conversación"}
+              </span>
+            ) : (
+              "Selecciona una conversación"
+            )}
           </p>
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {loadingMessages ? <p className="text-sm text-slate-500">Cargando mensajes...</p> : null}
           {!messages.length && !loadingMessages ? (
-            <p className="text-sm text-slate-500">No hay mensajes aun.</p>
+            <p className="text-sm text-slate-500">No hay mensajes aún.</p>
           ) : null}
           {messages.map((message) => {
             const mine = message.sender.id === currentUserId;
             return (
               <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                    mine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-900"
-                  }`}
-                >
-                  {!mine ? <p className="mb-1 text-xs font-semibold">{message.sender.name}</p> : null}
-                  <p>{message.content}</p>
+                <div className={`flex max-w-[85%] items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                  <UserAvatar
+                    name={message.sender.name}
+                    src={message.sender.avatarUrl}
+                    size={28}
+                    className={mine ? "opacity-90" : ""}
+                  />
+                  <div
+                    className={`rounded-2xl px-3 py-2 text-sm ${
+                      mine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-900"
+                    }`}
+                  >
+                    {!mine ? <p className="mb-1 text-xs font-semibold">{message.sender.name}</p> : null}
+                    <p>{message.content}</p>
+                  </div>
                 </div>
               </div>
             );

@@ -21,8 +21,8 @@ export default async function AdminCategoriasPage() {
 
   return (
     <DashboardShell
-      title="Gestion de categorias"
-      subtitle="Controla la taxonomia de servicios de la plataforma."
+      title="Gestión de categorías"
+      subtitle="Controla la taxonomía de servicios de la plataforma."
       links={[...adminDashboardLinks]}
     >
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -31,7 +31,7 @@ export default async function AdminCategoriasPage() {
             <p className="font-semibold text-slate-900">{category.name}</p>
             <p className="text-sm text-slate-500">Slug: {category.slug}</p>
             <p className="mt-2 text-xs text-slate-500">
-              Tecnicos: {category._count.technicianServices} | Solicitudes: {category._count.serviceRequests}
+              Técnicos: {category._count.technicianServices} | Solicitudes: {category._count.serviceRequests}
             </p>
           </Card>
         ))}

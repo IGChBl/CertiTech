@@ -58,7 +58,7 @@ export function AdminVerificationActions({
 
     const data = await response.json();
     if (!response.ok) {
-      setError(data.error ?? "No se pudo actualizar la verificacion.");
+      setError(data.error ?? "No se pudo actualizar la verificación.");
       setSaving(false);
       return;
     }

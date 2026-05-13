@@ -9,7 +9,7 @@ const clientLinks = [
   { href: "/dashboard/cliente/chats", label: "Mis chats" },
   { href: "/dashboard/cliente/favoritos", label: "Favoritos" },
   { href: "/dashboard/cliente/resenas", label: "Mis reseñas" },
-  { href: "/dashboard/cliente/configuracion", label: "Configuracion" },
+  { href: "/dashboard/cliente/configuracion", label: "Configuración" },
 ];
 
 export default async function ClienteChatsPage() {
@@ -43,7 +43,7 @@ export default async function ClienteChatsPage() {
   return (
     <DashboardShell
       title="Mis chats"
-      subtitle="Conversa en tiempo real con tecnicos para coordinar cada servicio."
+      subtitle="Conversa en tiempo real con técnicos para coordinar cada servicio."
       links={clientLinks}
     >
       <ChatPanel

@@ -9,10 +9,16 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 export default async function AdminDashboardPage() {
   await requirePageRole("ADMIN");
 
-  const [users, clients, technicians, requests, completed, chats, reviews] = await Promise.all([
+  const [users, clients, technicians, activeSubscriptions, requests, completed, chats, reviews] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: { code: "CLIENT" } } }),
     prisma.user.count({ where: { role: { code: "TECHNICIAN" } } }),
+    prisma.technicianProfile.count({
+      where: {
+        subscriptionStatus: "ACTIVE",
+        subscriptionPlan: { in: ["MONTHLY", "YEARLY"] },
+      },
+    }),
     prisma.serviceRequest.count(),
     prisma.serviceRequest.count({ where: { status: "COMPLETED" } }),
     prisma.chat.count(),
@@ -35,18 +41,19 @@ export default async function AdminDashboardPage() {
   return (
     <DashboardShell
       title="Panel administrativo"
-      subtitle="Vista general de operacion y calidad de la plataforma."
+      subtitle="Vista general de operación y calidad de la plataforma."
       links={[...adminDashboardLinks]}
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
           { label: "Total usuarios", value: users },
           { label: "Clientes", value: clients },
-          { label: "Tecnicos", value: technicians },
+          { label: "Técnicos", value: technicians },
+          { label: "Suscripciones activas", value: activeSubscriptions },
           { label: "Solicitudes", value: requests },
           { label: "Servicios completados", value: completed },
           { label: "Chats", value: chats },
-          { label: "Resenas", value: reviews },
+          { label: "Reseñas", value: reviews },
         ].map((item) => (
           <Card key={item.label}>
             <p className="text-sm text-slate-500">{item.label}</p>
@@ -56,7 +63,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       <Card>
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Tecnicos mejor valorados</h2>
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Técnicos mejor valorados</h2>
         <div className="space-y-2">
           {topTechs.map((tech) => (
             <div key={tech.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
@@ -69,16 +76,16 @@ export default async function AdminDashboardPage() {
               </p>
             </div>
           ))}
-          {!topTechs.length ? <p className="text-sm text-slate-600">Sin datos suficientes aun.</p> : null}
+          {!topTechs.length ? <p className="text-sm text-slate-600">Sin datos suficientes aún.</p> : null}
         </div>
       </Card>
 
       <Card>
         <p className="text-sm text-slate-600">
-          Tambien puedes consultar las rutas API administrativas para integracion externa y analitica avanzada.
+          También puedes consultar las rutas API administrativas para integración externa y analítica avanzada.
         </p>
         <Link href="/api/admin/metrics" className="mt-2 inline-block text-sm font-semibold text-slate-900 underline">
-          Ver JSON de metricas
+          Ver JSON de métricas
         </Link>
       </Card>
     </DashboardShell>

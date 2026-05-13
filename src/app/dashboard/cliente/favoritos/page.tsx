@@ -12,7 +12,7 @@ const clientLinks = [
   { href: "/dashboard/cliente/chats", label: "Mis chats" },
   { href: "/dashboard/cliente/favoritos", label: "Favoritos" },
   { href: "/dashboard/cliente/resenas", label: "Mis reseñas" },
-  { href: "/dashboard/cliente/configuracion", label: "Configuracion" },
+  { href: "/dashboard/cliente/configuracion", label: "Configuración" },
 ];
 
 export default async function ClienteFavoritosPage() {
@@ -35,7 +35,7 @@ export default async function ClienteFavoritosPage() {
   });
 
   return (
-    <DashboardShell title="Mis favoritos" subtitle="Tecnicos guardados para futuras contrataciones." links={clientLinks}>
+    <DashboardShell title="Mis favoritos" subtitle="Técnicos guardados para futuras contrataciones." links={clientLinks}>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {favorites.map((favorite) => (
           <Card key={favorite.id}>
@@ -64,7 +64,7 @@ export default async function ClienteFavoritosPage() {
           </Card>
         ))}
       </div>
-      {!favorites.length ? <Card>No tienes tecnicos guardados todavia.</Card> : null}
+      {!favorites.length ? <Card>No tienes técnicos guardados todavía.</Card> : null}
     </DashboardShell>
   );
 }

@@ -93,12 +93,12 @@ export default async function AdminVerificacionesPage() {
   return (
     <DashboardShell
       title="Verificaciones"
-      subtitle="Aprueba o rechaza clientes y tecnicos para fortalecer confianza y seguridad."
+      subtitle="Aprueba o rechaza clientes y técnicos para fortalecer confianza y seguridad."
       links={[...adminDashboardLinks]}
     >
       <Card className="space-y-2">
         <p className="text-sm text-slate-600">Clientes por revisar: {clients.length}</p>
-        <p className="text-sm text-slate-600">Tecnicos por revisar: {technicians.length}</p>
+        <p className="text-sm text-slate-600">Técnicos por revisar: {technicians.length}</p>
       </Card>
 
       <section className="space-y-3">
@@ -118,12 +118,12 @@ export default async function AdminVerificacionesPage() {
                 </div>
                 <div className="space-y-1 text-sm text-slate-600">
                   <p>Correo: {client.user.email}</p>
-                  <p>Telefono: {client.user.phone ?? "No definido"}</p>
+                  <p>Teléfono: {client.user.phone ?? "No definido"}</p>
                   <p>Ciudad/Zona: {client.city}{client.zone ? ` - ${client.zone}` : ""}</p>
                   <p>Nacimiento: {formatDate(client.user.birthDate)}</p>
-                  <p>Correo verificado: {client.user.isEmailVerified ? "Si" : "No"}</p>
-                  <p>Cedula: {client.identityDocumentNumber ?? "No registrada"}</p>
-                  <p>Ultima revision: {formatDate(client.verifiedAt)}</p>
+                  <p>Correo verificado: {client.user.isEmailVerified ? "Sí" : "No"}</p>
+                  <p>Cédula: {client.identityDocumentNumber ?? "No registrada"}</p>
+                  <p>Última revisión: {formatDate(client.verifiedAt)}</p>
                   <p>Revisado por: {client.verifiedBy?.email ?? "Sin asignar"}</p>
                 </div>
 
@@ -146,19 +146,23 @@ export default async function AdminVerificacionesPage() {
           </div>
         ) : (
           <Card>
-            <p className="text-sm text-slate-600">No hay clientes pendientes de verificacion.</p>
+            <p className="text-sm text-slate-600">No hay clientes pendientes de verificación.</p>
           </Card>
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-slate-900">Tecnicos</h2>
+        <h2 className="text-xl font-semibold text-slate-900">Técnicos</h2>
         {technicians.length ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {technicians.map((tech) => {
               const workEvidence = asStringArray(tech.workEvidenceJson);
               const certifications = asStringArray(tech.certificationsJson);
               const latestRequest = tech.verificationRequests[0];
+              const hasIdentityDocument = Boolean(tech.identityDocumentUrl);
+              const hasPoliceRecord = Boolean(tech.policeRecordUrl?.trim());
+              const hasEvidence = workEvidence.length > 0;
+              const hasCertifications = certifications.length > 0;
 
               return (
                 <Card key={tech.id} className="space-y-3">
@@ -173,27 +177,46 @@ export default async function AdminVerificacionesPage() {
                   <div className="space-y-1 text-sm text-slate-600">
                     <p>Negocio: {tech.businessName ?? "Independiente"}</p>
                     <p>Correo: {tech.user.email}</p>
-                    <p>Telefono: {tech.user.phone ?? "No definido"}</p>
+                    <p>Teléfono: {tech.user.phone ?? "No definido"}</p>
                     <p>
                       Ciudad/Zona: {tech.city}
                       {tech.workZone ? ` - ${tech.workZone}` : ""}
                     </p>
                     <p>Nacimiento: {formatDate(tech.user.birthDate)}</p>
-                    <p>Correo verificado: {tech.user.isEmailVerified ? "Si" : "No"}</p>
-                    <p>Anios de experiencia: {tech.yearsExperience}</p>
-                    <p>Categorias: {tech.services.map((service) => service.category.name).join(", ") || "Sin categorias"}</p>
-                    <p>Documento: {tech.identityDocumentUrl ? "Cargado" : "No cargado"}</p>
+                    <p>Correo verificado: {tech.user.isEmailVerified ? "Sí" : "No"}</p>
+                    <p>Años de experiencia: {tech.yearsExperience}</p>
+                    <p>Categorías: {tech.services.map((service) => service.category.name).join(", ") || "Sin categorías"}</p>
+                    <p>Documento: {hasIdentityDocument ? "Cargado" : "No cargado"}</p>
                     <p>Evidencias: {workEvidence.length}</p>
                     <p>Certificaciones: {certifications.length}</p>
-                    <p>Record policial: {tech.policeRecordUrl ? "Cargado" : "No cargado"}</p>
-                    <p>Ultima revision: {formatDate(tech.verifiedAt)}</p>
+                    <p>Récord policial: {hasPoliceRecord ? "Cargado" : "Pendiente"}</p>
+                    <p>Última revisión: {formatDate(tech.verifiedAt)}</p>
                     <p>Revisado por: {tech.verifiedBy?.email ?? "Sin asignar"}</p>
-                    <p>Solicitud verificacion: {latestRequest?.status ?? "No existe"}</p>
+                    <p>Solicitud verificación: {latestRequest?.status ?? "No existe"}</p>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    <p className="font-semibold text-slate-900">Checklist de aprobación</p>
+                    <p>{hasIdentityDocument ? "✓ Documento de identidad cargado" : "✗ Documento de identidad pendiente"}</p>
+                    <p>{hasPoliceRecord ? "✓ Récord policial cargado" : "✗ Récord policial pendiente"}</p>
+                    <p>{hasEvidence ? "✓ Evidencias de trabajo cargadas" : "✗ Evidencias de trabajo pendientes"}</p>
+                    <p>{hasCertifications ? "✓ Certificaciones cargadas" : "✗ Certificaciones pendientes"}</p>
                   </div>
 
                   {tech.identityDocumentUrl ? (
                     <a href={tech.identityDocumentUrl} target="_blank" rel="noreferrer" className="text-xs text-slate-700 underline">
                       Ver documento de identidad
+                    </a>
+                  ) : null}
+
+                  {hasPoliceRecord ? (
+                    <a
+                      href={`/api/technician/profile-assets/police-record?technicianProfileId=${tech.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-slate-700 underline"
+                    >
+                      Ver récord policial
                     </a>
                   ) : null}
 
@@ -243,7 +266,7 @@ export default async function AdminVerificacionesPage() {
           </div>
         ) : (
           <Card>
-            <p className="text-sm text-slate-600">No hay tecnicos pendientes de verificacion.</p>
+            <p className="text-sm text-slate-600">No hay técnicos pendientes de verificación.</p>
           </Card>
         )}
       </section>

@@ -29,8 +29,8 @@ export default async function AdminReportesPage() {
 
   return (
     <DashboardShell
-      title="Gestion de reportes"
-      subtitle="Seguridad comunitaria y moderacion de casos."
+      title="Gestión de reportes"
+      subtitle="Seguridad comunitaria y moderación de casos."
       links={[...adminDashboardLinks]}
     >
       <div className="space-y-3">

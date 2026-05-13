@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/auth/page";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
@@ -6,16 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { ResendVerificationButton } from "@/components/forms/resend-verification-button";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 import { UserAvatar } from "@/components/ui/user-avatar";
-
-const technicianLinks = [
-  { href: "/dashboard/tecnico", label: "Resumen" },
-  { href: "/dashboard/tecnico/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/tecnico/trabajos", label: "Trabajos" },
-  { href: "/dashboard/tecnico/chats", label: "Chats" },
-  { href: "/dashboard/tecnico/valoraciones", label: "Valoraciones" },
-  { href: "/dashboard/tecnico/galeria", label: "Galeria" },
-  { href: "/dashboard/tecnico/configuracion", label: "Configuracion" },
-];
+import { technicianDashboardLinks } from "@/lib/dashboard-links";
+import {
+  getSubscriptionDaysRemaining,
+  hasActivePaidSubscription,
+  hasTechnicianPoliceRecord,
+  POLICE_RECORD_REQUIRED_MESSAGE,
+} from "@/lib/subscriptions/service";
+import {
+  getSubscriptionPlanBadgeVariant,
+  getSubscriptionPlanLabel,
+  getSubscriptionStatusBadgeVariant,
+  getSubscriptionStatusLabel,
+} from "@/lib/subscriptions/ui";
 
 export default async function TecnicoDashboardPage({
   searchParams,
@@ -24,10 +28,23 @@ export default async function TecnicoDashboardPage({
 }) {
   const params = await searchParams;
   const user = await requirePageRole("TECHNICIAN");
+  const profile = user.technicianProfile;
   const verificationStatus = user.technicianProfile?.verification ?? "PENDING";
   const isVerified = verificationStatus === "VERIFIED";
   const emailVerified = user.isEmailVerified;
   const showEmailDeliveryWarning = params.email_notice === "delivery_failed";
+  const hasActiveSubscription = profile
+    ? hasActivePaidSubscription({
+        subscriptionPlan: profile.subscriptionPlan,
+        subscriptionStatus: profile.subscriptionStatus,
+        subscriptionEndDate: profile.subscriptionEndDate,
+        policeRecordUrl: profile.policeRecordUrl,
+      })
+    : false;
+  const hasPoliceRecord = hasTechnicianPoliceRecord(profile?.policeRecordUrl);
+  const hasOperationalAccess = hasActiveSubscription && hasPoliceRecord;
+  const daysRemaining = profile ? getSubscriptionDaysRemaining(profile.subscriptionEndDate) : null;
+  const expiringSoon = hasOperationalAccess && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 7;
 
   const [assigned, completed, reviews, pendingRequests] = await Promise.all([
     prisma.serviceRequest.count({ where: { technicianId: user.id } }),
@@ -42,7 +59,7 @@ export default async function TecnicoDashboardPage({
         technicianId: null,
         status: "PENDING",
         categoryId: {
-          in: isVerified && user.technicianProfile
+          in: isVerified && hasOperationalAccess && user.technicianProfile
             ? (
                 await prisma.technicianService.findMany({
                   where: { technicianId: user.technicianProfile.id },
@@ -57,9 +74,9 @@ export default async function TecnicoDashboardPage({
 
   return (
     <DashboardShell
-      title={`Panel tecnico: ${user.technicianProfile?.displayName ?? user.email}`}
-      subtitle="Gestiona solicitudes, conversaciones y reputacion desde un solo lugar."
-      links={technicianLinks}
+      title={`Panel técnico: ${user.technicianProfile?.displayName ?? user.email}`}
+      subtitle="Gestiona solicitudes, conversaciones y reputación desde un solo lugar."
+      links={[...technicianDashboardLinks]}
     >
       <Card className="space-y-2">
         <div className="flex items-center gap-3 pb-1">
@@ -71,42 +88,78 @@ export default async function TecnicoDashboardPage({
           />
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              {user.technicianProfile?.displayName ?? "Perfil tecnico"}
+              {user.technicianProfile?.displayName ?? "Perfil técnico"}
             </p>
             <p className="text-xs text-slate-500">{user.email}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium text-slate-700">Correo verificado:</p>
-          <Badge variant={emailVerified ? "success" : "warning"}>{emailVerified ? "Si" : "No"}</Badge>
+          <Badge variant={emailVerified ? "success" : "warning"}>{emailVerified ? "Sí" : "No"}</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium text-slate-700">Estado de verificacion:</p>
+          <p className="text-sm font-medium text-slate-700">Estado de verificación:</p>
           <Badge variant={getVerificationColor(verificationStatus)}>{getVerificationLabel(verificationStatus)}</Badge>
         </div>
+        {profile ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-slate-700">Plan:</p>
+              <Badge variant={getSubscriptionPlanBadgeVariant(profile.subscriptionPlan)}>
+                {getSubscriptionPlanLabel(profile.subscriptionPlan)}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-slate-700">Suscripción:</p>
+              <Badge variant={getSubscriptionStatusBadgeVariant(profile.subscriptionStatus)}>
+                {getSubscriptionStatusLabel(profile.subscriptionStatus)}
+              </Badge>
+            </div>
+          </>
+        ) : null}
         {!emailVerified ? (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Debes verificar tu correo para habilitar publicaciones y contrataciones tecnicas.
           </p>
         ) : null}
+        {!hasPoliceRecord ? (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {POLICE_RECORD_REQUIRED_MESSAGE}
+          </p>
+        ) : null}
         {showEmailDeliveryWarning ? (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Tu cuenta fue creada, pero no se pudo enviar el correo de verificacion. Usa el boton de reenvio.
+            Tu cuenta fue creada, pero no se pudo enviar el correo de verificación. Usa el botón de reenvío.
           </p>
         ) : null}
         {!emailVerified ? <ResendVerificationButton /> : null}
         {!isVerified && verificationStatus !== "REJECTED" ? (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Tu perfil esta en revision. Podras aparecer en busquedas y recibir solicitudes cuando sea aprobado por
+            Tu perfil está en revisión. Podrás aparecer en búsquedas y recibir solicitudes cuando sea aprobado por
             CertiTech.
+          </p>
+        ) : null}
+        {isVerified && !hasOperationalAccess ? (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {!hasPoliceRecord
+              ? POLICE_RECORD_REQUIRED_MESSAGE
+              : "Tu plan actual no permite recibir nuevos contactos. Activa una suscripción para aparecer en búsquedas."}
+          </p>
+        ) : null}
+        {expiringSoon ? (
+          <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+            Tu suscripción vence en {daysRemaining} días. Renueva para mantener tu visibilidad.
           </p>
         ) : null}
         {verificationStatus === "REJECTED" ? (
           <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva
-            revision.
+            Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva
+            revisión.
           </p>
         ) : null}
+        <Link href="/dashboard/tecnico/suscripcion" className="inline-block text-sm font-semibold text-slate-900 underline">
+          Administrar suscripción
+        </Link>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ServiceRequestForm } from "@/components/forms/service-request-form";
+import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 const clientLinks = [
   { href: "/dashboard/cliente", label: "Resumen" },
@@ -11,7 +12,7 @@ const clientLinks = [
   { href: "/dashboard/cliente/chats", label: "Mis chats" },
   { href: "/dashboard/cliente/favoritos", label: "Favoritos" },
   { href: "/dashboard/cliente/resenas", label: "Mis reseñas" },
-  { href: "/dashboard/cliente/configuracion", label: "Configuracion" },
+  { href: "/dashboard/cliente/configuracion", label: "Configuración" },
 ];
 
 export default async function ClienteSolicitudesPage() {
@@ -22,8 +23,8 @@ export default async function ClienteSolicitudesPage() {
 
   const restrictionMessage =
     clientStatus === "REJECTED"
-      ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
-      : "Tu cuenta esta pendiente de verificacion. Algunas funciones estaran limitadas hasta completar el proceso.";
+      ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
+      : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
 
   const [categories, technicians, requests] = await Promise.all([
     prisma.serviceCategory.findMany({
@@ -32,8 +33,8 @@ export default async function ClienteSolicitudesPage() {
       select: { id: true, name: true },
     }),
     prisma.technicianProfile.findMany({
-      where: { user: { status: "ACTIVE", isEmailVerified: true }, verification: "VERIFIED" },
-      orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+      where: buildPublicTechnicianWhere(),
+      orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { averageRating: "desc" }, { totalReviews: "desc" }],
       take: 20,
       select: { userId: true, displayName: true, businessName: true },
     }),
@@ -49,7 +50,7 @@ export default async function ClienteSolicitudesPage() {
   return (
     <DashboardShell
       title="Mis solicitudes"
-      subtitle="Publica nuevas necesidades y monitorea su estado de contratacion."
+      subtitle="Publica nuevas necesidades y monitorea su estado de contratación."
       links={clientLinks}
     >
       <Card>
@@ -80,7 +81,7 @@ export default async function ClienteSolicitudesPage() {
               <p className="text-xs text-slate-500">{request.city}</p>
             </div>
           ))}
-          {!requests.length ? <p className="text-sm text-slate-600">Aun no has publicado solicitudes.</p> : null}
+          {!requests.length ? <p className="text-sm text-slate-600">Aún no has publicado solicitudes.</p> : null}
         </div>
       </Card>
     </DashboardShell>
