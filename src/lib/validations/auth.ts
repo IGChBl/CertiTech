@@ -117,7 +117,7 @@ export const registerTechnicianSchema = z.object({
   referencePriceMin: z.number().int().min(0).optional(),
   referencePriceMax: z.number().int().min(0).optional(),
   identityDocumentUrl: z.string().url("Documento invalido"),
-  avatarUrl: z.string().url("Foto de perfil invalida"),
+  avatarUrl: z.string().url("Foto de perfil invalida").optional().or(z.literal("")),
   workEvidenceUrls: z.array(z.string().url("Evidencia invalida")).min(1, "Sube al menos una evidencia de trabajo"),
   certificationUrls: z.array(z.string().url("Certificacion invalida")).optional(),
   policeRecordUrl: z.string().url("Record policial invalido").optional(),

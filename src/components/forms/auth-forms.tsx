@@ -467,7 +467,7 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
         </div>
 
         <div>
-          <Input name="avatarUrl" required placeholder="URL de foto de perfil" />
+          <Input name="avatarUrl" placeholder="URL de foto de perfil (opcional)" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "avatarUrl")} />
         </div>
         <div>

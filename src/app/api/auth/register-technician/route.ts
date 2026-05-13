@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
             yearsExperience,
             availabilityText,
             scheduleText,
-            avatarUrl,
+            avatarUrl: avatarUrl || null,
             identityDocumentUrl,
             workEvidenceJson: workEvidenceUrls,
             certificationsJson: certificationUrls ?? [],
