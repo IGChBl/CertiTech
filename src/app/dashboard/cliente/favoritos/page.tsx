@@ -4,6 +4,7 @@ import { requirePageRole } from "@/lib/auth/page";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const clientLinks = [
   { href: "/dashboard/cliente", label: "Resumen" },
@@ -38,7 +39,14 @@ export default async function ClienteFavoritosPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {favorites.map((favorite) => (
           <Card key={favorite.id}>
-            <h3 className="text-lg font-semibold text-slate-900">{favorite.technicianProfile.displayName}</h3>
+            <div className="mb-2 flex items-center gap-3">
+              <UserAvatar
+                name={favorite.technicianProfile.displayName}
+                src={favorite.technicianProfile.avatarUrl}
+                size={44}
+              />
+              <h3 className="text-lg font-semibold text-slate-900">{favorite.technicianProfile.displayName}</h3>
+            </div>
             <p className="text-sm text-slate-600">{favorite.technicianProfile.city}</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {favorite.technicianProfile.services.slice(0, 3).map((service) => (

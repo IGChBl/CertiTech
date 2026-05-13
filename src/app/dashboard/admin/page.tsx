@@ -4,6 +4,7 @@ import { requirePageRole } from "@/lib/auth/page";
 import { adminDashboardLinks } from "@/lib/dashboard-links";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 export default async function AdminDashboardPage() {
   await requirePageRole("ADMIN");
@@ -22,6 +23,13 @@ export default async function AdminDashboardPage() {
     where: { totalReviews: { gt: 0 } },
     orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
     take: 5,
+    select: {
+      id: true,
+      displayName: true,
+      avatarUrl: true,
+      averageRating: true,
+      totalReviews: true,
+    },
   });
 
   return (
@@ -52,7 +60,10 @@ export default async function AdminDashboardPage() {
         <div className="space-y-2">
           {topTechs.map((tech) => (
             <div key={tech.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <p className="text-sm font-medium text-slate-900">{tech.displayName}</p>
+              <div className="flex items-center gap-2">
+                <UserAvatar name={tech.displayName} src={tech.avatarUrl} size={30} />
+                <p className="text-sm font-medium text-slate-900">{tech.displayName}</p>
+              </div>
               <p className="text-xs text-slate-500">
                 {tech.averageRating.toFixed(1)} estrellas ({tech.totalReviews})
               </p>

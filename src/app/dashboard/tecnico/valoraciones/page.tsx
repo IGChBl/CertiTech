@@ -3,6 +3,7 @@ import { requirePageRole } from "@/lib/auth/page";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { RatingStars } from "@/components/ui/rating-stars";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const technicianLinks = [
   { href: "/dashboard/tecnico", label: "Resumen" },
@@ -37,9 +38,16 @@ export default async function TecnicoValoracionesPage() {
         {reviews.map((review) => (
           <Card key={review.id}>
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-slate-900">
-                {review.client.clientProfile?.fullName ?? review.client.email}
-              </p>
+              <div className="flex items-center gap-2">
+                <UserAvatar
+                  name={review.client.clientProfile?.fullName ?? review.client.email}
+                  src={review.client.clientProfile?.avatarUrl}
+                  size={34}
+                />
+                <p className="font-semibold text-slate-900">
+                  {review.client.clientProfile?.fullName ?? review.client.email}
+                </p>
+              </div>
               <RatingStars rating={review.rating} />
             </div>
             <p className="mt-2 text-sm text-slate-600">{review.comment ?? "Sin comentario"}</p>

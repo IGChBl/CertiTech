@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ResendVerificationButton } from "@/components/forms/resend-verification-button";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
+import { AvatarUploader } from "@/components/forms/avatar-uploader";
 
 const technicianLinks = [
   { href: "/dashboard/tecnico", label: "Resumen" },
@@ -24,6 +25,11 @@ export default async function TecnicoConfiguracionPage() {
   return (
     <DashboardShell title="Configuracion tecnica" subtitle="Administra tu perfil publico profesional." links={technicianLinks}>
       <Card className="space-y-2">
+        <AvatarUploader
+          displayName={user.technicianProfile?.displayName}
+          currentAvatarUrl={user.technicianProfile?.avatarUrl}
+          subtitle="Tu foto sera visible en tarjetas, perfil publico y paneles internos."
+        />
         <p className="text-sm text-slate-600">Nombre: {user.technicianProfile?.displayName}</p>
         <p className="text-sm text-slate-600">Correo: {user.email}</p>
         <p className="text-sm text-slate-600">Ciudad: {user.technicianProfile?.city}</p>

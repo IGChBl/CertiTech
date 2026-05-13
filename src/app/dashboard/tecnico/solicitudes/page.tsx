@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { RequestStatusUpdater } from "@/components/forms/request-status-updater";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const technicianLinks = [
   { href: "/dashboard/tecnico", label: "Resumen" },
@@ -55,11 +56,18 @@ export default async function TecnicoSolicitudesPage() {
         {requests.map((request) => (
           <Card key={request.id} className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-lg font-semibold text-slate-900">{request.title}</p>
-                <p className="text-sm text-slate-600">
-                  Cliente: {request.client.clientProfile?.fullName ?? request.client.email} - {request.city}
-                </p>
+              <div className="flex items-center gap-2">
+                <UserAvatar
+                  name={request.client.clientProfile?.fullName ?? request.client.email}
+                  src={request.client.clientProfile?.avatarUrl}
+                  size={36}
+                />
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{request.title}</p>
+                  <p className="text-sm text-slate-600">
+                    Cliente: {request.client.clientProfile?.fullName ?? request.client.email} - {request.city}
+                  </p>
+                </div>
               </div>
               <Badge variant="neutral">{request.status}</Badge>
             </div>

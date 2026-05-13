@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ResendVerificationButton } from "@/components/forms/resend-verification-button";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
+import { AvatarUploader } from "@/components/forms/avatar-uploader";
 
 const clientLinks = [
   { href: "/dashboard/cliente", label: "Resumen" },
@@ -26,6 +27,11 @@ export default async function ClienteConfiguracionPage() {
   return (
     <DashboardShell title="Configuracion" subtitle="Gestiona tus datos personales y preferencias." links={clientLinks}>
       <Card className="space-y-2">
+        <AvatarUploader
+          displayName={user.clientProfile?.fullName}
+          currentAvatarUrl={user.clientProfile?.avatarUrl}
+          subtitle="Tu foto se usara en dashboard, chats, solicitudes y reseñas."
+        />
         <p className="text-sm text-slate-600">Nombre: {user.clientProfile?.fullName}</p>
         <p className="text-sm text-slate-600">Correo: {user.email}</p>
         <p className="text-sm text-slate-600">Telefono: {user.phone ?? "No definido"}</p>

@@ -6,6 +6,7 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 type TechnicianCardProps = {
   technician: {
@@ -19,6 +20,7 @@ type TechnicianCardProps = {
     totalReviews: number;
     verification: "PENDING" | "IN_REVIEW" | "VERIFIED" | "REJECTED";
     referencePriceMin?: number | null;
+    avatarUrl?: string | null;
     categories: string[];
   };
 };
@@ -27,9 +29,12 @@ export function TechnicianCard({ technician }: TechnicianCardProps) {
   return (
     <Card className="flex h-full flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">{technician.displayName}</h3>
-          {technician.businessName ? <p className="text-sm text-slate-600">{technician.businessName}</p> : null}
+        <div className="flex items-center gap-3">
+          <UserAvatar name={technician.displayName} src={technician.avatarUrl} size={46} />
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">{technician.displayName}</h3>
+            {technician.businessName ? <p className="text-sm text-slate-600">{technician.businessName}</p> : null}
+          </div>
         </div>
         <Badge variant={getVerificationColor(technician.verification)}>
           {getVerificationLabel(technician.verification)}

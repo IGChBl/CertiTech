@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminVerificationActions } from "@/components/forms/admin-verification-actions";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 function asStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -107,7 +108,10 @@ export default async function AdminVerificacionesPage() {
             {clients.map((client) => (
               <Card key={client.id} className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-base font-semibold text-slate-900">{client.fullName}</p>
+                  <div className="flex items-center gap-2">
+                    <UserAvatar name={client.fullName} src={client.avatarUrl} size={36} />
+                    <p className="text-base font-semibold text-slate-900">{client.fullName}</p>
+                  </div>
                   <Badge variant={getVerificationColor(client.verificationStatus)}>
                     {getVerificationLabel(client.verificationStatus)}
                   </Badge>
@@ -159,7 +163,10 @@ export default async function AdminVerificacionesPage() {
               return (
                 <Card key={tech.id} className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-base font-semibold text-slate-900">{tech.displayName}</p>
+                    <div className="flex items-center gap-2">
+                      <UserAvatar name={tech.displayName} src={tech.avatarUrl} size={36} />
+                      <p className="text-base font-semibold text-slate-900">{tech.displayName}</p>
+                    </div>
                     <Badge variant={getVerificationColor(tech.verification)}>{getVerificationLabel(tech.verification)}</Badge>
                   </div>
 

@@ -5,6 +5,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 export default async function AdminUsuariosPage() {
   await requirePageRole("ADMIN");
@@ -29,7 +30,7 @@ export default async function AdminUsuariosPage() {
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-2 py-2">Correo</th>
+              <th className="px-2 py-2">Usuario</th>
               <th className="px-2 py-2">Rol</th>
               <th className="px-2 py-2">Nombre</th>
               <th className="px-2 py-2">Correo verificado</th>
@@ -46,13 +47,25 @@ export default async function AdminUsuariosPage() {
                   : user.role.code === "TECHNICIAN"
                     ? user.technicianProfile?.verification
                     : null;
+              const displayName = user.clientProfile?.fullName ?? user.technicianProfile?.displayName ?? user.email;
+              const avatarUrl =
+                user.role.code === "CLIENT"
+                  ? user.clientProfile?.avatarUrl
+                  : user.role.code === "TECHNICIAN"
+                    ? user.technicianProfile?.avatarUrl
+                    : null;
 
               return (
                 <tr key={user.id} className="border-b border-slate-100">
-                  <td className="px-2 py-2 text-slate-700">{user.email}</td>
+                  <td className="px-2 py-2 text-slate-700">
+                    <div className="flex items-center gap-2">
+                      <UserAvatar name={displayName} src={avatarUrl} size={30} />
+                      <span className="max-w-[220px] truncate">{user.email}</span>
+                    </div>
+                  </td>
                   <td className="px-2 py-2 text-slate-700">{user.role.code}</td>
                   <td className="px-2 py-2 text-slate-700">
-                    {user.clientProfile?.fullName ?? user.technicianProfile?.displayName ?? "-"}
+                    {displayName}
                   </td>
                   <td className="px-2 py-2">
                     <Badge variant={user.isEmailVerified ? "success" : "warning"}>{user.isEmailVerified ? "Si" : "No"}</Badge>

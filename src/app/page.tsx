@@ -130,6 +130,7 @@ export default async function Home() {
                 totalReviews: technician.totalReviews,
                 verification: technician.verification,
                 referencePriceMin: technician.referencePriceMin,
+                avatarUrl: technician.avatarUrl,
                 categories: technician.services.map((service) => service.category.name),
               }}
             />

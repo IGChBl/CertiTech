@@ -57,6 +57,8 @@ export default async function TecnicoChatsPage() {
               participant.user.clientProfile?.fullName ??
               participant.user.technicianProfile?.displayName ??
               participant.user.email,
+            avatarUrl:
+              participant.user.clientProfile?.avatarUrl ?? participant.user.technicianProfile?.avatarUrl ?? null,
           })),
           latestMessage: chat.messages[0] ? { content: chat.messages[0].content } : null,
         }))}

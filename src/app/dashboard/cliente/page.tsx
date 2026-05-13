@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ResendVerificationButton } from "@/components/forms/resend-verification-button";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const clientLinks = [
   { href: "/dashboard/cliente", label: "Resumen" },
@@ -46,6 +47,18 @@ export default async function ClienteDashboardPage({
       links={clientLinks}
     >
       <Card className="space-y-2">
+        <div className="flex items-center gap-3 pb-1">
+          <UserAvatar
+            name={user.clientProfile?.fullName}
+            src={user.clientProfile?.avatarUrl}
+            size={52}
+            className="ring-2 ring-white"
+          />
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{user.clientProfile?.fullName ?? "Cliente"}</p>
+            <p className="text-xs text-slate-500">{user.email}</p>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium text-slate-700">Correo verificado:</p>
           <Badge variant={emailVerified ? "success" : "warning"}>{emailVerified ? "Si" : "No"}</Badge>
