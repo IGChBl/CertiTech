@@ -1,16 +1,7 @@
 import { requirePageRole } from "@/lib/auth/page";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
-
-const technicianLinks = [
-  { href: "/dashboard/tecnico", label: "Resumen" },
-  { href: "/dashboard/tecnico/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/tecnico/trabajos", label: "Trabajos" },
-  { href: "/dashboard/tecnico/chats", label: "Chats" },
-  { href: "/dashboard/tecnico/valoraciones", label: "Valoraciones" },
-  { href: "/dashboard/tecnico/galeria", label: "Galeria" },
-  { href: "/dashboard/tecnico/configuracion", label: "Configuracion" },
-];
+import { technicianDashboardLinks } from "@/lib/dashboard-links";
 
 export default async function TecnicoGaleriaPage() {
   const user = await requirePageRole("TECHNICIAN");
@@ -19,14 +10,14 @@ export default async function TecnicoGaleriaPage() {
 
   return (
     <DashboardShell
-      title="Galeria de trabajos"
+      title="Galería de trabajos"
       subtitle="Muestra evidencia visual de tus servicios para generar confianza."
-      links={technicianLinks}
+      links={[...technicianDashboardLinks]}
     >
       <Card>
-        <p className="text-sm text-slate-600">Total de imagenes registradas: {gallery.length}</p>
+        <p className="text-sm text-slate-600">Total de imágenes registradas: {gallery.length}</p>
         <p className="mt-2 text-xs text-slate-500">
-          El MVP deja preparada esta seccion para integrar carga local o Cloudinary.
+          El MVP deja preparada esta sección para integrar carga local o Cloudinary.
         </p>
       </Card>
     </DashboardShell>

@@ -1,0 +1,413 @@
+"use client";
+
+import { FormEvent, type ReactNode, useRef, useState } from "react";
+import { Loader2, Trash2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+
+type AssetKind = "identityDocument" | "workEvidence" | "certification" | "policeRecord";
+
+type FieldErrors = Record<string, string[]>;
+
+type ProfessionalProfileFormProps = {
+  initialIdentityDocumentUrl?: string | null;
+  initialPoliceRecordUrl?: string | null;
+  initialWorkEvidences?: string[];
+  initialCertifications?: string[];
+  initialReferencePriceMin?: number | null;
+  initialReferencePriceMax?: number | null;
+  hasActiveSubscription: boolean;
+  verificationStatus: "PENDING" | "IN_REVIEW" | "VERIFIED" | "REJECTED";
+};
+
+function getFirstFieldError(fieldErrors: FieldErrors, field: string) {
+  return fieldErrors[field]?.[0] ?? null;
+}
+
+function UploadSection({
+  title,
+  description,
+  accept,
+  onPick,
+  loading,
+  children,
+}: {
+  title: string;
+  description: string;
+  accept: string;
+  onPick: (file: File | null) => void;
+  loading: boolean;
+  children?: ReactNode;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <p className="text-sm font-semibold text-slate-900">{title}</p>
+      <p className="text-xs text-slate-500">{description}</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(event) => onPick(event.target.files?.[0] ?? null)}
+      />
+      <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={loading}>
+        {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Upload className="mr-1.5 h-4 w-4" />}
+        {loading ? "Subiendo..." : "Subir archivo"}
+      </Button>
+      {children}
+    </div>
+  );
+}
+
+export function TechnicianProfessionalProfileForm({
+  initialIdentityDocumentUrl,
+  initialPoliceRecordUrl,
+  initialWorkEvidences = [],
+  initialCertifications = [],
+  initialReferencePriceMin,
+  initialReferencePriceMax,
+  hasActiveSubscription,
+  verificationStatus,
+}: ProfessionalProfileFormProps) {
+  const router = useRouter();
+  const [identityDocumentUrl, setIdentityDocumentUrl] = useState<string | null>(initialIdentityDocumentUrl ?? null);
+  const [policeRecordUrl, setPoliceRecordUrl] = useState<string | null>(initialPoliceRecordUrl ?? null);
+  const [workEvidences, setWorkEvidences] = useState<string[]>(initialWorkEvidences);
+  const [certifications, setCertifications] = useState<string[]>(initialCertifications);
+  const [referencePriceMin, setReferencePriceMin] = useState(
+    initialReferencePriceMin !== null && initialReferencePriceMin !== undefined ? String(initialReferencePriceMin) : "",
+  );
+  const [referencePriceMax, setReferencePriceMax] = useState(
+    initialReferencePriceMax !== null && initialReferencePriceMax !== undefined ? String(initialReferencePriceMax) : "",
+  );
+  const [loadingKind, setLoadingKind] = useState<AssetKind | null>(null);
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [requestingVerification, setRequestingVerification] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function uploadAsset(kind: AssetKind, file: File | null) {
+    if (!file) return;
+
+    setLoadingKind(kind);
+    setError(null);
+    setMessage(null);
+
+    const formData = new FormData();
+    formData.append("kind", kind);
+    formData.append("file", file);
+
+    const response = await fetch("/api/technician/profile-assets", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo cargar el archivo.");
+      setLoadingKind(null);
+      return;
+    }
+
+    if (kind === "identityDocument") {
+      setIdentityDocumentUrl(data.url ?? null);
+    } else if (kind === "policeRecord") {
+      setPoliceRecordUrl(data.url ?? null);
+    } else if (kind === "workEvidence") {
+      setWorkEvidences(Array.isArray(data.values) ? data.values : []);
+    } else if (kind === "certification") {
+      setCertifications(Array.isArray(data.values) ? data.values : []);
+    }
+
+    setMessage(data.message ?? "Archivo cargado correctamente.");
+    setLoadingKind(null);
+    router.refresh();
+  }
+
+  async function removeAsset(kind: AssetKind, fileUrl?: string) {
+    setLoadingKind(kind);
+    setError(null);
+    setMessage(null);
+
+    const response = await fetch("/api/technician/profile-assets", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind,
+        fileUrl,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo eliminar el archivo.");
+      setLoadingKind(null);
+      return;
+    }
+
+    if (kind === "identityDocument") {
+      setIdentityDocumentUrl(null);
+    } else if (kind === "policeRecord") {
+      setPoliceRecordUrl(null);
+    } else if (kind === "workEvidence") {
+      setWorkEvidences(Array.isArray(data.values) ? data.values : []);
+    } else if (kind === "certification") {
+      setCertifications(Array.isArray(data.values) ? data.values : []);
+    }
+
+    setMessage(data.message ?? "Archivo eliminado correctamente.");
+    setLoadingKind(null);
+    router.refresh();
+  }
+
+  async function savePrices(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingPrices(true);
+    setFieldErrors({});
+    setError(null);
+    setMessage(null);
+
+    const response = await fetch("/api/technician/profile-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        referencePriceMin: referencePriceMin || null,
+        referencePriceMax: referencePriceMax || null,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      if (data.issues?.fieldErrors) {
+        setFieldErrors(data.issues.fieldErrors);
+      }
+      setError(data.error ?? "No se pudieron actualizar los precios.");
+      setSavingPrices(false);
+      return;
+    }
+
+    setMessage(data.message ?? "Precios referenciales actualizados.");
+    setSavingPrices(false);
+    router.refresh();
+  }
+
+  async function requestVerification() {
+    if (!policeRecordUrl) {
+      setError("Debes subir tu récord policial para continuar con el proceso de verificación.");
+      setMessage(null);
+      return;
+    }
+
+    setRequestingVerification(true);
+    setError(null);
+    setMessage(null);
+
+    const response = await fetch("/api/technician/verification/request", {
+      method: "POST",
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo enviar la solicitud de verificación.");
+      setRequestingVerification(false);
+      return;
+    }
+
+    setMessage(data.message ?? "Solicitud de verificación enviada correctamente.");
+    setRequestingVerification(false);
+    router.refresh();
+  }
+
+  return (
+    <Card className="space-y-4">
+      <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+        Completa tu perfil profesional para aumentar tus oportunidades de ser aprobado y recibir clientes.
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        El récord policial es obligatorio para verificación, visibilidad pública, suscripciones activas y recepción de
+        clientes.
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <UploadSection
+          title="Documento de identidad"
+          description="Sube JPG, PNG, WEBP o PDF."
+          accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+          onPick={(file) => uploadAsset("identityDocument", file)}
+          loading={loadingKind === "identityDocument"}
+        >
+          {identityDocumentUrl ? (
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <a href={identityDocumentUrl} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
+                Ver documento cargado
+              </a>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-rose-700"
+                onClick={() => removeAsset("identityDocument")}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Eliminar
+              </button>
+            </div>
+          ) : null}
+        </UploadSection>
+
+        <UploadSection
+          title="Récord policial (obligatorio)"
+          description="Sube JPG, PNG, WEBP o PDF. Este documento es obligatorio para continuar."
+          accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+          onPick={(file) => uploadAsset("policeRecord", file)}
+          loading={loadingKind === "policeRecord"}
+        >
+          {policeRecordUrl ? (
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <a href={policeRecordUrl} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
+                Ver récord cargado
+              </a>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-rose-700"
+                onClick={() => removeAsset("policeRecord")}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Eliminar
+              </button>
+            </div>
+          ) : null}
+        </UploadSection>
+
+        <UploadSection
+          title="Evidencias de trabajos"
+          description="Sube imágenes de trabajos realizados (antes/después)."
+          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+          onPick={(file) => uploadAsset("workEvidence", file)}
+          loading={loadingKind === "workEvidence"}
+        >
+          {workEvidences.length ? (
+            <div className="space-y-1 text-xs">
+              {workEvidences.map((url) => (
+                <div key={url} className="flex items-center justify-between gap-2">
+                  <a href={url} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
+                    {url}
+                  </a>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-rose-700"
+                    onClick={() => removeAsset("workEvidence", url)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Quitar
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </UploadSection>
+
+        <UploadSection
+          title="Certificaciones"
+          description="Sube certificados en PDF o imagen."
+          accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+          onPick={(file) => uploadAsset("certification", file)}
+          loading={loadingKind === "certification"}
+        >
+          {certifications.length ? (
+            <div className="space-y-1 text-xs">
+              {certifications.map((url) => (
+                <div key={url} className="flex items-center justify-between gap-2">
+                  <a href={url} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
+                    {url}
+                  </a>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-rose-700"
+                    onClick={() => removeAsset("certification", url)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Quitar
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </UploadSection>
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-sm font-semibold text-slate-900">Solicitud de verificación</p>
+        <p className="text-xs text-slate-600">
+          Envía tu perfil a revisión cuando tengas tus documentos al día. El récord policial es obligatorio.
+        </p>
+        <Button
+          type="button"
+          onClick={requestVerification}
+          disabled={
+            requestingVerification ||
+            !policeRecordUrl ||
+            verificationStatus === "IN_REVIEW" ||
+            verificationStatus === "VERIFIED"
+          }
+        >
+          {verificationStatus === "VERIFIED"
+            ? "Perfil ya verificado"
+            : verificationStatus === "IN_REVIEW"
+              ? "Solicitud en revisión"
+              : requestingVerification
+                ? "Enviando solicitud..."
+                : "Solicitar verificación"}
+        </Button>
+      </div>
+
+      <form className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3" onSubmit={savePrices}>
+        <p className="text-sm font-semibold text-slate-900">Precios referenciales</p>
+        <p className="text-xs text-slate-500">
+          {hasActiveSubscription
+            ? "Tu suscripción está activa. Mantén precios claros para mejorar conversiones."
+            : "Puedes configurar tus precios ahora y ajustarlos cuando actives tu suscripción."}
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <Input
+              type="number"
+              min={1}
+              value={referencePriceMin}
+              onChange={(event) => setReferencePriceMin(event.target.value)}
+              placeholder="Ej. C$500"
+            />
+            {getFirstFieldError(fieldErrors, "referencePriceMin") ? (
+              <p className="mt-1 text-xs text-rose-700">{getFirstFieldError(fieldErrors, "referencePriceMin")}</p>
+            ) : null}
+          </div>
+          <div>
+            <Input
+              type="number"
+              min={1}
+              value={referencePriceMax}
+              onChange={(event) => setReferencePriceMax(event.target.value)}
+              placeholder="Ej. C$2,500"
+            />
+            {getFirstFieldError(fieldErrors, "referencePriceMax") ? (
+              <p className="mt-1 text-xs text-rose-700">{getFirstFieldError(fieldErrors, "referencePriceMax")}</p>
+            ) : null}
+          </div>
+        </div>
+        <Button type="submit" disabled={savingPrices}>
+          {savingPrices ? "Guardando..." : "Guardar precios"}
+        </Button>
+      </form>
+
+      {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+      {message ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
+    </Card>
+  );
+}

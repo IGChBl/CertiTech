@@ -103,7 +103,7 @@ async function setAvatarUrl(userId: string, role: RoleCode, avatarUrl: string | 
 
 async function uploadWithLocalProvider(input: UploadAvatarInput): Promise<UploadAvatarResult> {
   const optimized = await optimizeAvatarImage(input.fileBuffer).catch(() => {
-    throw new AvatarUploadError("El archivo no es una imagen valida o esta danado.", 400);
+    throw new AvatarUploadError("El archivo no es una imagen válida o está dañado.", 400);
   });
   const directory = getLocalAvatarDirectoryAbsolutePath();
 
@@ -139,7 +139,7 @@ export async function uploadUserAvatar(input: UploadAvatarInput): Promise<Upload
 
   if (provider === "cloudinary" || provider === "supabase" || provider === "s3") {
     throw new AvatarUploadError(
-      `El proveedor ${provider} aun no esta habilitado en esta version. Usa UPLOAD_PROVIDER=local.`,
+      `El proveedor ${provider} aún no está habilitado en esta versión. Usa UPLOAD_PROVIDER=local.`,
       503,
     );
   }

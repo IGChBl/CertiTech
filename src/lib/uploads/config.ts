@@ -6,6 +6,7 @@ export const AVATAR_MAX_ORIGINAL_SIZE_BYTES = 8 * 1024 * 1024;
 export const AVATAR_TARGET_SIZE = 400;
 export const AVATAR_SUBDIRECTORY = "avatars";
 export const AVATAR_ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+export const TECHNICIAN_ASSETS_SUBDIRECTORY = "technicians";
 
 function normalizeSlashes(value: string) {
   return value.replace(/\\/g, "/").replace(/^\.?\//, "");
@@ -50,4 +51,13 @@ export function getLocalAvatarDirectoryAbsolutePath() {
 export function getAvatarPublicPathPrefix() {
   const base = getLocalUploadPublicBasePath();
   return `${base}/${AVATAR_SUBDIRECTORY}`.replace(/\/{2,}/g, "/");
+}
+
+export function getTechnicianAssetsAbsoluteBasePath() {
+  return path.resolve(getLocalUploadAbsolutePath(), TECHNICIAN_ASSETS_SUBDIRECTORY);
+}
+
+export function getTechnicianAssetsPublicBasePath() {
+  const base = getLocalUploadPublicBasePath();
+  return `${base}/${TECHNICIAN_ASSETS_SUBDIRECTORY}`.replace(/\/{2,}/g, "/");
 }
