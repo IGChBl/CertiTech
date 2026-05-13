@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (auth.user.isEmailVerified) {
-    return jsonOk({ message: "Tu correo ya esta verificado.", sent: true });
+    return jsonOk({ message: "Tu correo ya está verificado.", sent: true });
   }
 
   const context =
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
 
   if (!result.ok) {
     return jsonError(
-      `No se pudo enviar el correo de verificacion (${result.provider}). ${result.error}`,
+      `No se pudo enviar el correo de verificación (${result.provider}). ${result.error}`,
       502,
     );
   }
 
   return jsonOk({
     sent: true,
-    message: "Te enviamos un nuevo correo de verificacion.",
+    message: "Te enviamos un nuevo correo de verificación.",
   });
 }

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Datos invalidos",
+          error: "Datos inválidos",
           issues: parsed.error.flatten(),
         },
         { status: 400 },
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const role = await prisma.role.findUnique({ where: { code: "CLIENT" } });
 
     if (!role) {
-      return jsonError("Configuracion de roles incompleta", 500);
+      return jsonError("Configuración de roles incompleta", 500);
     }
 
     const user = await prisma.user.create({
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           sent: emailResult.ok,
           warning: emailResult.ok
             ? undefined
-            : "La cuenta fue creada, pero no se pudo enviar el correo de verificacion. Usa 'Reenviar correo'.",
+            : "La cuenta fue creada, pero no se pudo enviar el correo de verificación. Usa 'Reenviar correo'.",
         },
       },
       201,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
       return jsonError(
-        "La base de datos esta desactualizada para este registro. Ejecuta migraciones y vuelve a intentar.",
+        "La base de datos está desactualizada para este registro. Ejecuta migraciones y vuelve a intentar.",
         500,
       );
     }

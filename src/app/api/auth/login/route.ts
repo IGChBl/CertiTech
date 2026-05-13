@@ -11,14 +11,14 @@ export async function POST(request: NextRequest) {
   const rate = enforceRateLimit(`login:${ip}`, { limit: 10, windowMs: 60_000 });
 
   if (!rate.allowed) {
-    return jsonError("Demasiados intentos de inicio de sesion", 429);
+    return jsonError("Demasiados intentos de inicio de sesión", 429);
   }
 
   const body = await request.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
 
   if (!parsed.success) {
-    return jsonError("Credenciales invalidas", 400);
+    return jsonError("Credenciales inválidas", 400);
   }
 
   const { email, password } = parsed.data;
@@ -33,17 +33,17 @@ export async function POST(request: NextRequest) {
   });
 
   if (!user) {
-    return jsonError("Correo o contrasena incorrectos", 401);
+    return jsonError("Correo o contraseña incorrectos", 401);
   }
 
   if (user.status !== "ACTIVE") {
-    return jsonError("Tu cuenta esta suspendida o inactiva", 403);
+    return jsonError("Tu cuenta está suspendida o inactiva", 403);
   }
 
   const ok = await comparePassword(password, user.passwordHash);
 
   if (!ok) {
-    return jsonError("Correo o contrasena incorrectos", 401);
+    return jsonError("Correo o contraseña incorrectos", 401);
   }
 
   await setSessionCookies({
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   });
 
   return jsonOk({
-    message: "Sesion iniciada",
+    message: "Sesión iniciada",
     user: {
       id: user.id,
       email: user.email,

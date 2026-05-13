@@ -9,5 +9,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return jsonOk({ message: "Sesion cerrada" });
+  return jsonOk({ message: "Sesión cerrada" });
 }

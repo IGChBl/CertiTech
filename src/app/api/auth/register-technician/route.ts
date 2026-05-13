@@ -23,20 +23,12 @@ export async function POST(request: NextRequest) {
       body.yearsExperience = Number(body.yearsExperience);
     }
 
-    if (body?.referencePriceMin !== undefined && body.referencePriceMin !== "") {
-      body.referencePriceMin = Number(body.referencePriceMin);
-    }
-
-    if (body?.referencePriceMax !== undefined && body.referencePriceMax !== "") {
-      body.referencePriceMax = Number(body.referencePriceMax);
-    }
-
     const parsed = registerTechnicianSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Datos invalidos",
+          error: "Datos inválidos",
           issues: parsed.error.flatten(),
         },
         { status: 400 },
@@ -57,13 +49,6 @@ export async function POST(request: NextRequest) {
       availabilityText,
       scheduleText,
       categoryIds,
-      referencePriceMin,
-      referencePriceMax,
-      identityDocumentUrl,
-      avatarUrl,
-      workEvidenceUrls,
-      certificationUrls,
-      policeRecordUrl,
     } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -75,7 +60,7 @@ export async function POST(request: NextRequest) {
     const role = await prisma.role.findUnique({ where: { code: "TECHNICIAN" } });
 
     if (!role) {
-      return jsonError("Configuracion de roles incompleta", 500);
+      return jsonError("Configuración de roles incompleta", 500);
     }
 
     const uniqueCategoryIds = Array.from(new Set(categoryIds));
@@ -85,7 +70,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (categories.length !== uniqueCategoryIds.length) {
-      return jsonError("Selecciona categorias validas", 400);
+      return jsonError("Selecciona categorías válidas", 400);
     }
 
     const user = await prisma.user.create({
@@ -107,14 +92,13 @@ export async function POST(request: NextRequest) {
             yearsExperience,
             availabilityText,
             scheduleText,
-            avatarUrl: avatarUrl || null,
-            identityDocumentUrl,
-            workEvidenceJson: workEvidenceUrls,
-            certificationsJson: certificationUrls ?? [],
-            policeRecordUrl,
-            referencePriceMin,
-            referencePriceMax,
-            verification: "IN_REVIEW",
+            workEvidenceJson: [],
+            certificationsJson: [],
+            subscriptionPlan: "FREE",
+            subscriptionStatus: "ACTIVE",
+            subscriptionStartDate: new Date(),
+            autoRenew: false,
+            verification: "PENDING",
           },
         },
       },
@@ -125,7 +109,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user.technicianProfile) {
-      return jsonError("No se pudo crear el perfil tecnico", 500);
+      return jsonError("No se pudo crear el perfil técnico", 500);
     }
 
     await prisma.technicianService.createMany({
@@ -135,16 +119,6 @@ export async function POST(request: NextRequest) {
         title: "Servicio principal",
       })),
       skipDuplicates: true,
-    });
-
-    await prisma.verificationRequest.create({
-      data: {
-        technicianProfileId: user.technicianProfile.id,
-        requestedById: user.id,
-        documentUrl: identityDocumentUrl,
-        status: "PENDING",
-        notes: "Registro inicial, pendiente de revision administrativa.",
-      },
     });
 
     const emailResult = await sendVerificationEmail({
@@ -164,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     return jsonOk(
       {
-        message: "Cuenta tecnica creada correctamente",
+        message: "Cuenta técnica creada correctamente",
         user: {
           id: user.id,
           email: user.email,
@@ -177,7 +151,7 @@ export async function POST(request: NextRequest) {
           sent: emailResult.ok,
           warning: emailResult.ok
             ? undefined
-            : "La cuenta fue creada, pero no se pudo enviar el correo de verificacion. Usa 'Reenviar correo'.",
+            : "La cuenta fue creada, pero no se pudo enviar el correo de verificación. Usa 'Reenviar correo'.",
         },
       },
       201,
@@ -185,13 +159,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
       return jsonError(
-        "La base de datos esta desactualizada para este registro. Ejecuta migraciones y vuelve a intentar.",
+        "La base de datos está desactualizada para este registro. Ejecuta migraciones y vuelve a intentar.",
         500,
       );
     }
 
     console.error("register-technician error", error);
-    return jsonError("No se pudo completar el registro tecnico en este momento.", 500);
+    return jsonError("No se pudo completar el registro técnico en este momento.", 500);
   }
 }
 

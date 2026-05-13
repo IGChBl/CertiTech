@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   if (!rate.allowed) {
     return NextResponse.json(
-      { error: "Demasiados intentos, intenta mas tarde." },
+      { error: "Demasiados intentos, intenta más tarde." },
       { status: 429 },
     );
   }
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   const parsed = forgotPasswordSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Datos invalidos" }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
   }
 
   const { email } = parsed.data;
@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
 
     await sendMail({
       to: user.email,
-      subject: "Recupera tu contrasena en CertiTech",
-      text: `Recupera tu contrasena usando este enlace: ${resetUrl}`,
+      subject: "Recupera tu contraseña en CertiTech",
+      text: `Recupera tu contraseña usando este enlace: ${resetUrl}`,
     });
 
     return jsonOk({

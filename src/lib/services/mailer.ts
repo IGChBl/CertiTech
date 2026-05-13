@@ -22,7 +22,7 @@ function getMailProvider(): MailProvider {
     return provider;
   }
 
-  console.warn(`[MAIL] EMAIL_PROVIDER invalido "${provider}". Se usara "console".`);
+  console.warn(`[MAIL] EMAIL_PROVIDER inválido "${provider}". Se usará "console".`);
   return "console";
 }
 
@@ -35,7 +35,7 @@ async function sendWithResend(payload: MailPayload) {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
-    throw new Error("RESEND_API_KEY no esta configurada.");
+    throw new Error("RESEND_API_KEY no está configurada.");
   }
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -66,12 +66,12 @@ async function sendWithSmtp(payload: MailPayload) {
   const pass = process.env.SMTP_PASS?.trim();
 
   if (!host || !portRaw || !user || !pass) {
-    throw new Error("Configuracion SMTP incompleta. Revisa SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS.");
+    throw new Error("Configuración SMTP incompleta. Revisa SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS.");
   }
 
   const port = Number(portRaw);
   if (!Number.isFinite(port) || port <= 0) {
-    throw new Error("SMTP_PORT invalido. Debe ser un numero de puerto valido.");
+    throw new Error("SMTP_PORT inválido. Debe ser un número de puerto válido.");
   }
 
   const secure = port === 465;

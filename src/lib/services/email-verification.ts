@@ -38,17 +38,18 @@ export function getEmailVerificationLink(token: string) {
 
 function buildVerificationEmailHtml(verificationLink: string, context: VerificationEmailContext) {
   const name = context.fullName?.trim() || "Hola";
+  const accountLabel = context.accountType === "tecnico" ? "técnico" : "cliente";
 
   return `
   <div style="font-family: Arial, sans-serif; color: #0f172a; background: #f8fafc; padding: 24px;">
     <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
       <h1 style="margin: 0 0 12px; font-size: 24px; color: #0f172a;">CertiTech</h1>
-      <p style="margin: 0 0 16px; font-size: 14px; color: #334155;">${name}, gracias por registrarte como ${context.accountType}.</p>
-      <p style="margin: 0 0 20px; font-size: 14px; color: #334155;">Para activar tu cuenta, confirma tu correo haciendo clic en el siguiente boton:</p>
+      <p style="margin: 0 0 16px; font-size: 14px; color: #334155;">${name}, gracias por registrarte como ${accountLabel}.</p>
+      <p style="margin: 0 0 20px; font-size: 14px; color: #334155;">Para activar tu cuenta, confirma tu correo haciendo clic en el siguiente botón:</p>
       <a href="${verificationLink}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 11px 18px; border-radius: 10px; font-size: 14px; font-weight: 600;">
         Verificar correo
       </a>
-      <p style="margin: 20px 0 8px; font-size: 12px; color: #64748b;">Si el boton no funciona, copia y pega este enlace en tu navegador:</p>
+      <p style="margin: 20px 0 8px; font-size: 12px; color: #64748b;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
       <p style="margin: 0; font-size: 12px; word-break: break-all; color: #334155;">${verificationLink}</p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
       <p style="margin: 0; font-size: 12px; color: #64748b;">Este enlace expira en 24 horas.</p>
@@ -68,7 +69,7 @@ export async function sendVerificationEmail(params: {
   const result = await sendMail({
     to: params.email,
     subject: "Verifica tu correo en CertiTech",
-    text: `Confirma tu correo aqui: ${verificationLink}`,
+    text: `Confirma tu correo aquí: ${verificationLink}`,
     html,
   });
 
@@ -119,7 +120,7 @@ export async function verifyEmailToken(token: string) {
         data: {
           verificationStatus: "BASIC_VERIFIED",
           verifiedAt: new Date(),
-          verificationNote: "Verificacion basica por correo completada.",
+          verificationNote: "Verificación básica por correo completada.",
         },
       });
     }

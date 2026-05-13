@@ -25,7 +25,7 @@ export function ResendVerificationButton() {
         return;
       }
 
-      setMessage(data?.message ?? "Correo de verificacion reenviado.");
+      setMessage(data?.message ?? "Correo de verificación reenviado.");
     } catch {
       setError("No se pudo reenviar el correo en este momento.");
     } finally {
@@ -36,7 +36,7 @@ export function ResendVerificationButton() {
   return (
     <div className="space-y-2">
       <Button type="button" variant="secondary" onClick={onResend} disabled={loading}>
-        {loading ? "Reenviando..." : "Reenviar correo de verificacion"}
+        {loading ? "Reenviando..." : "Reenviar correo de verificación"}
       </Button>
       {message ? <p className="text-xs text-emerald-700">{message}</p> : null}
       {error ? <p className="text-xs text-rose-700">{error}</p> : null}
