@@ -29,6 +29,8 @@ type ApiResponseData = {
   };
 };
 
+const fieldLabelClassName = "mb-1 block text-sm font-medium text-slate-700";
+
 function getFirstFieldError(fieldErrors: FieldErrors, field: string) {
   return fieldErrors[field]?.[0] ?? null;
 }
@@ -121,12 +123,16 @@ export function LoginForm() {
       <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Correo</label>
-          <Input type="email" name="email" required placeholder="correo@ejemplo.com" />
+          <label htmlFor="login-email" className={fieldLabelClassName}>
+            Correo electrónico
+          </label>
+          <Input id="login-email" type="email" name="email" required placeholder="correo@ejemplo.com" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Contraseña</label>
-          <Input type="password" name="password" required placeholder="********" />
+          <label htmlFor="login-password" className={fieldLabelClassName}>
+            Contraseña
+          </label>
+          <Input id="login-password" type="password" name="password" required placeholder="********" />
         </div>
 
         {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
@@ -234,50 +240,79 @@ function ClientRegisterForm() {
     <Card className="mx-auto w-full max-w-lg space-y-4">
       <h2 className="text-xl font-semibold text-slate-900">Registro de cliente</h2>
       <form className="space-y-3" onSubmit={onSubmit}>
-        <div>
-          <Input name="fullName" required placeholder="Ej. María López" />
+        <div className="space-y-1">
+          <label htmlFor="client-full-name" className={fieldLabelClassName}>
+            Nombre completo
+          </label>
+          <Input id="client-full-name" name="fullName" required placeholder="Ej. María López" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "fullName")} />
         </div>
-        <div>
-          <Input name="email" type="email" required placeholder="ejemplo@correo.com" />
+        <div className="space-y-1">
+          <label htmlFor="client-email" className={fieldLabelClassName}>
+            Correo electrónico
+          </label>
+          <Input id="client-email" name="email" type="email" required placeholder="ejemplo@correo.com" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "email")} />
         </div>
-        <div>
-          <Input name="phone" required placeholder="Ej. 8888-8888 o +505 8888-8888" />
+        <div className="space-y-1">
+          <label htmlFor="client-phone" className={fieldLabelClassName}>
+            Teléfono
+          </label>
+          <Input id="client-phone" name="phone" required placeholder="Ej. 8888-8888 o +505 8888-8888" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "phone")} />
         </div>
-        <div>
-          <Input name="birthDate" type="date" required placeholder="dd/mm/aaaa" />
+        <div className="space-y-1">
+          <label htmlFor="client-birth-date" className={fieldLabelClassName}>
+            Fecha de nacimiento
+          </label>
+          <Input id="client-birth-date" name="birthDate" type="date" required placeholder="dd/mm/aaaa" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "birthDate")} />
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <Input name="city" required placeholder="Ej. Managua" />
+          <div className="space-y-1">
+            <label htmlFor="client-city" className={fieldLabelClassName}>
+              Ciudad
+            </label>
+            <Input id="client-city" name="city" required placeholder="Ej. Managua" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "city")} />
           </div>
-          <div>
-            <Input name="zone" required placeholder="Ej. Altamira, Linda Vista, Carretera Sur" />
+          <div className="space-y-1">
+            <label htmlFor="client-zone" className={fieldLabelClassName}>
+              Zona
+            </label>
+            <Input id="client-zone" name="zone" required placeholder="Ej. Altamira, Linda Vista, Carretera Sur" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "zone")} />
           </div>
         </div>
-        <div>
-          <Input name="password" type="password" required placeholder="Mínimo 8 caracteres" />
+        <div className="space-y-1">
+          <label htmlFor="client-password" className={fieldLabelClassName}>
+            Contraseña
+          </label>
+          <Input id="client-password" name="password" type="password" required placeholder="Mínimo 8 caracteres" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "password")} />
         </div>
-        <div>
-          <Input name="identityDocumentNumber" placeholder="Ej. 001-010190-0001A" />
+        <div className="space-y-1">
+          <label htmlFor="client-identity-document" className={fieldLabelClassName}>
+            Documento de identidad
+          </label>
+          <Input id="client-identity-document" name="identityDocumentNumber" placeholder="Ej. 001-010190-0001A" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "identityDocumentNumber")} />
         </div>
-        <div>
+        <div className="space-y-1">
+          <label htmlFor="client-bio" className={fieldLabelClassName}>
+            Servicios que suele necesitar
+          </label>
           <Textarea
+            id="client-bio"
             name="bio"
             rows={3}
             placeholder="Ej. reparación de lavadora, instalación eléctrica, mantenimiento de aire acondicionado"
           />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "bio")} />
         </div>
+        <p className={fieldLabelClassName}>Confirmación de mayoría de edad</p>
         <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-          <input name="confirmedAdult" type="checkbox" required className="mt-0.5" />
+          <input id="client-confirmed-adult" name="confirmedAdult" type="checkbox" required className="mt-0.5" />
           Confirmo que soy mayor de 18 años.
         </label>
         <FieldErrorBubble message={getFirstFieldError(fieldErrors, "confirmedAdult")} />
@@ -378,45 +413,80 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
       <h2 className="text-xl font-semibold text-slate-900">Registro técnico</h2>
       <form className="space-y-3" onSubmit={onSubmit}>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <Input name="displayName" required placeholder="Ej. Juan Pérez / Refrigeración Pérez" />
+          <div className="space-y-1">
+            <label htmlFor="technician-display-name" className={fieldLabelClassName}>
+              Nombre o marca
+            </label>
+            <Input
+              id="technician-display-name"
+              name="displayName"
+              required
+              placeholder="Ej. Juan Pérez / Refrigeración Pérez"
+            />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "displayName")} />
           </div>
-          <div>
-            <Input name="businessName" placeholder="Ej. Taller Pérez" />
+          <div className="space-y-1">
+            <label htmlFor="technician-business-name" className={fieldLabelClassName}>
+              Nombre del negocio
+            </label>
+            <Input id="technician-business-name" name="businessName" placeholder="Ej. Taller Pérez" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "businessName")} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <Input name="email" type="email" required placeholder="ejemplo@correo.com" />
+          <div className="space-y-1">
+            <label htmlFor="technician-email" className={fieldLabelClassName}>
+              Correo electrónico
+            </label>
+            <Input id="technician-email" name="email" type="email" required placeholder="ejemplo@correo.com" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "email")} />
           </div>
-          <div>
-            <Input name="phone" required placeholder="Ej. 8888-8888 o +505 8888-8888" />
+          <div className="space-y-1">
+            <label htmlFor="technician-phone" className={fieldLabelClassName}>
+              Teléfono
+            </label>
+            <Input id="technician-phone" name="phone" required placeholder="Ej. 8888-8888 o +505 8888-8888" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "phone")} />
           </div>
         </div>
 
-        <div>
-          <Input name="birthDate" type="date" required placeholder="dd/mm/aaaa" />
+        <div className="space-y-1">
+          <label htmlFor="technician-birth-date" className={fieldLabelClassName}>
+            Fecha de nacimiento
+          </label>
+          <Input id="technician-birth-date" name="birthDate" type="date" required placeholder="dd/mm/aaaa" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "birthDate")} />
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <Input name="city" required placeholder="Ej. Managua" />
+          <div className="space-y-1">
+            <label htmlFor="technician-city" className={fieldLabelClassName}>
+              Ciudad
+            </label>
+            <Input id="technician-city" name="city" required placeholder="Ej. Managua" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "city")} />
           </div>
-          <div>
-            <Input name="workZone" required placeholder="Ej. Carretera a Masaya, Bello Horizonte, Ciudad Sandino" />
+          <div className="space-y-1">
+            <label htmlFor="technician-work-zone" className={fieldLabelClassName}>
+              Zona de trabajo
+            </label>
+            <Input
+              id="technician-work-zone"
+              name="workZone"
+              required
+              placeholder="Ej. Carretera a Masaya, Bello Horizonte, Ciudad Sandino"
+            />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "workZone")} />
           </div>
         </div>
 
-        <div>
+        <div className="space-y-1">
+          <label htmlFor="technician-description" className={fieldLabelClassName}>
+            Descripción profesional
+          </label>
           <Textarea
+            id="technician-description"
             name="description"
             rows={3}
             required
@@ -426,8 +496,12 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div>
+          <div className="space-y-1">
+            <label htmlFor="technician-years-experience" className={fieldLabelClassName}>
+              Años de experiencia
+            </label>
             <Input
+              id="technician-years-experience"
               name="yearsExperience"
               type="number"
               min={0}
@@ -437,28 +511,60 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
             />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "yearsExperience")} />
           </div>
-          <div>
-            <Input name="availabilityText" required placeholder="Ej. Lunes a sábado" />
+          <div className="space-y-1">
+            <label htmlFor="technician-availability-text" className={fieldLabelClassName}>
+              Disponibilidad
+            </label>
+            <Input
+              id="technician-availability-text"
+              name="availabilityText"
+              required
+              placeholder="Ej. Lunes a sábado"
+            />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "availabilityText")} />
           </div>
-          <div>
-            <Input name="scheduleText" required placeholder="Ej. 8:00 a.m. - 5:00 p.m." />
+          <div className="space-y-1">
+            <label htmlFor="technician-schedule-text" className={fieldLabelClassName}>
+              Horario
+            </label>
+            <Input
+              id="technician-schedule-text"
+              name="scheduleText"
+              required
+              placeholder="Ej. 8:00 a.m. - 5:00 p.m."
+            />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "scheduleText")} />
           </div>
         </div>
 
-        <div>
-          <Input name="password" type="password" required placeholder="Mínimo 8 caracteres" />
+        <div className="space-y-1">
+          <label htmlFor="technician-password" className={fieldLabelClassName}>
+            Contraseña
+          </label>
+          <Input
+            id="technician-password"
+            name="password"
+            type="password"
+            required
+            placeholder="Mínimo 8 caracteres"
+          />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "password")} />
         </div>
+        <p className={fieldLabelClassName}>Confirmación de mayoría de edad</p>
         <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-          <input name="confirmedAdult" type="checkbox" required className="mt-0.5" />
+          <input
+            id="technician-confirmed-adult"
+            name="confirmedAdult"
+            type="checkbox"
+            required
+            className="mt-0.5"
+          />
           Confirmo que soy mayor de 18 años.
         </label>
         <FieldErrorBubble message={getFirstFieldError(fieldErrors, "confirmedAdult")} />
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-700">Categorías de servicio</p>
+        <fieldset className="space-y-2">
+          <legend className={fieldLabelClassName}>Categorías de servicio</legend>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
             {sortedCategories.map((category) => {
               const active = selected.includes(category.id);
@@ -478,7 +584,7 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
               );
             })}
           </div>
-        </div>
+        </fieldset>
 
         {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
         {message ? (
@@ -573,14 +679,36 @@ export function ForgotPasswordForm({ token }: { token?: string }) {
 
       {token ? (
         <form className="space-y-4" onSubmit={onResetPassword}>
-          <Input name="password" type="password" required placeholder="Nueva contraseña" />
+          <div className="space-y-1">
+            <label htmlFor="forgot-password-new-password" className={fieldLabelClassName}>
+              Nueva contraseña
+            </label>
+            <Input
+              id="forgot-password-new-password"
+              name="password"
+              type="password"
+              required
+              placeholder="Nueva contraseña"
+            />
+          </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Actualizando..." : "Actualizar contraseña"}
           </Button>
         </form>
       ) : (
         <form className="space-y-4" onSubmit={onRequestReset}>
-          <Input name="email" type="email" required placeholder="Correo de tu cuenta" />
+          <div className="space-y-1">
+            <label htmlFor="forgot-password-email" className={fieldLabelClassName}>
+              Correo electrónico
+            </label>
+            <Input
+              id="forgot-password-email"
+              name="email"
+              type="email"
+              required
+              placeholder="Correo de tu cuenta"
+            />
+          </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Enviando..." : "Enviar enlace"}
           </Button>

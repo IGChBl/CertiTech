@@ -70,30 +70,48 @@ export function AdminVerificationActions({
 
   return (
     <form className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3" onSubmit={onSubmit}>
-      <select
-        value={status}
-        onChange={(event) => setStatus(event.target.value)}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-      >
-        {allowedStatuses.map((item) => (
-          <option key={`${targetType}-${profileId}-${item}`} value={item}>
-            {getVerificationLabel(item)}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-1">
+        <label htmlFor={`verification-status-${profileId}`} className="block text-sm font-medium text-slate-700">
+          Estado de verificación
+        </label>
+        <select
+          id={`verification-status-${profileId}`}
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+        >
+          {allowedStatuses.map((item) => (
+            <option key={`${targetType}-${profileId}-${item}`} value={item}>
+              {getVerificationLabel(item)}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <Input
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder="Motivo de rechazo (requerido al rechazar)"
-      />
+      <div className="space-y-1">
+        <label htmlFor={`verification-reason-${profileId}`} className="block text-sm font-medium text-slate-700">
+          Motivo de rechazo
+        </label>
+        <Input
+          id={`verification-reason-${profileId}`}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Motivo de rechazo (requerido al rechazar)"
+        />
+      </div>
 
-      <Textarea
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        rows={2}
-        placeholder="Nota interna o comentario para el usuario (opcional)"
-      />
+      <div className="space-y-1">
+        <label htmlFor={`verification-note-${profileId}`} className="block text-sm font-medium text-slate-700">
+          Nota interna
+        </label>
+        <Textarea
+          id={`verification-note-${profileId}`}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={2}
+          placeholder="Nota interna o comentario para el usuario (opcional)"
+        />
+      </div>
 
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p> : null}
       {message ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{message}</p> : null}

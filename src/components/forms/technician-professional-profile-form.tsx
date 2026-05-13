@@ -30,6 +30,7 @@ function UploadSection({
   title,
   description,
   accept,
+  inputId,
   onPick,
   loading,
   children,
@@ -37,6 +38,7 @@ function UploadSection({
   title: string;
   description: string;
   accept: string;
+  inputId: string;
   onPick: (file: File | null) => void;
   loading: boolean;
   children?: ReactNode;
@@ -45,9 +47,12 @@ function UploadSection({
 
   return (
     <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
+      <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+        {title}
+      </label>
       <p className="text-xs text-slate-500">{description}</p>
       <input
+        id={inputId}
         ref={inputRef}
         type="file"
         accept={accept}
@@ -239,6 +244,7 @@ export function TechnicianProfessionalProfileForm({
 
       <div className="grid gap-3 md:grid-cols-2">
         <UploadSection
+          inputId="technician-identity-document-file"
           title="Documento de identidad"
           description="Sube JPG, PNG, WEBP o PDF."
           accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
@@ -263,6 +269,7 @@ export function TechnicianProfessionalProfileForm({
         </UploadSection>
 
         <UploadSection
+          inputId="technician-police-record-file"
           title="Récord policial (obligatorio)"
           description="Sube JPG, PNG, WEBP o PDF. Este documento es obligatorio para continuar."
           accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
@@ -287,6 +294,7 @@ export function TechnicianProfessionalProfileForm({
         </UploadSection>
 
         <UploadSection
+          inputId="technician-work-evidence-file"
           title="Evidencias de trabajos"
           description="Sube imágenes de trabajos realizados (antes/después)."
           accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
@@ -315,6 +323,7 @@ export function TechnicianProfessionalProfileForm({
         </UploadSection>
 
         <UploadSection
+          inputId="technician-certification-file"
           title="Certificaciones"
           description="Sube certificados en PDF o imagen."
           accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
@@ -376,8 +385,12 @@ export function TechnicianProfessionalProfileForm({
             : "Puedes configurar tus precios ahora y ajustarlos cuando actives tu suscripción."}
         </p>
         <div className="grid gap-3 md:grid-cols-2">
-          <div>
+          <div className="space-y-1">
+            <label htmlFor="technician-reference-price-min" className="block text-sm font-medium text-slate-700">
+              Precio mínimo
+            </label>
             <Input
+              id="technician-reference-price-min"
               type="number"
               min={1}
               value={referencePriceMin}
@@ -388,8 +401,12 @@ export function TechnicianProfessionalProfileForm({
               <p className="mt-1 text-xs text-rose-700">{getFirstFieldError(fieldErrors, "referencePriceMin")}</p>
             ) : null}
           </div>
-          <div>
+          <div className="space-y-1">
+            <label htmlFor="technician-reference-price-max" className="block text-sm font-medium text-slate-700">
+              Precio máximo
+            </label>
             <Input
+              id="technician-reference-price-max"
               type="number"
               min={1}
               value={referencePriceMax}

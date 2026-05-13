@@ -163,7 +163,9 @@ export function AvatarUploader({
             className="ring-2 ring-white shadow-sm"
           />
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-slate-900">Foto de perfil</p>
+            <label htmlFor="profile-avatar-input" className="block text-sm font-medium text-slate-700">
+              Foto de perfil
+            </label>
             <p className="text-xs text-slate-500">
               {subtitle ?? "Sube una foto clara para generar confianza en la plataforma."}
             </p>
@@ -173,6 +175,7 @@ export function AvatarUploader({
 
         <div className="flex flex-wrap items-center gap-2">
           <input
+            id="profile-avatar-input"
             ref={fileRef}
             type="file"
             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"

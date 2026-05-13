@@ -87,55 +87,119 @@ export function ServiceRequestForm({
 
   return (
     <form className="space-y-3" onSubmit={onSubmit}>
-      <Input name="title" required placeholder="Título del problema o necesidad" />
+      <div className="space-y-1">
+        <label htmlFor="service-request-title" className="block text-sm font-medium text-slate-700">
+          Título del problema o necesidad
+        </label>
+        <Input id="service-request-title" name="title" required placeholder="Título del problema o necesidad" />
+      </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <select
-          name="categoryId"
-          required
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
-        >
-          <option value="">Selecciona categoría</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-1">
+          <label htmlFor="service-request-category" className="block text-sm font-medium text-slate-700">
+            Categoría
+          </label>
+          <select
+            id="service-request-category"
+            name="categoryId"
+            required
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">Selecciona categoría</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          name="technicianId"
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
-        >
-          <option value="">Asignar luego / abierto</option>
-          {technicians.map((technician) => (
-            <option key={technician.userId} value={technician.userId}>
-              {technician.label}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-1">
+          <label htmlFor="service-request-technician" className="block text-sm font-medium text-slate-700">
+            Técnico (opcional)
+          </label>
+          <select
+            id="service-request-technician"
+            name="technicianId"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">Asignar luego / abierto</option>
+            {technicians.map((technician) => (
+              <option key={technician.userId} value={technician.userId}>
+                {technician.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <Textarea name="description" rows={4} required placeholder="Describe detalles del servicio" />
+      <div className="space-y-1">
+        <label htmlFor="service-request-description" className="block text-sm font-medium text-slate-700">
+          Descripción del servicio
+        </label>
+        <Textarea
+          id="service-request-description"
+          name="description"
+          rows={4}
+          required
+          placeholder="Describe detalles del servicio"
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Input name="city" required placeholder="Ciudad" />
-        <Input name="zone" placeholder="Zona" />
-        <Input name="locationReference" placeholder="Referencia" />
+        <div className="space-y-1">
+          <label htmlFor="service-request-city" className="block text-sm font-medium text-slate-700">
+            Ciudad
+          </label>
+          <Input id="service-request-city" name="city" required placeholder="Ciudad" />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="service-request-zone" className="block text-sm font-medium text-slate-700">
+            Zona
+          </label>
+          <Input id="service-request-zone" name="zone" placeholder="Zona" />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="service-request-location-reference" className="block text-sm font-medium text-slate-700">
+            Referencia
+          </label>
+          <Input id="service-request-location-reference" name="locationReference" placeholder="Referencia" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <Input name="desiredDate" type="datetime-local" />
-        <select
-          name="urgency"
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
-        >
-          <option value="LOW">Baja</option>
-          <option value="MEDIUM">Media</option>
-          <option value="HIGH">Alta</option>
-          <option value="URGENT">Urgente</option>
-        </select>
-        <Input name="budgetMin" type="number" min={0} placeholder="Presupuesto mínimo" />
-        <Input name="budgetMax" type="number" min={0} placeholder="Presupuesto máximo" />
+        <div className="space-y-1">
+          <label htmlFor="service-request-desired-date" className="block text-sm font-medium text-slate-700">
+            Fecha deseada
+          </label>
+          <Input id="service-request-desired-date" name="desiredDate" type="datetime-local" />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="service-request-urgency" className="block text-sm font-medium text-slate-700">
+            Urgencia
+          </label>
+          <select
+            id="service-request-urgency"
+            name="urgency"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+          >
+            <option value="LOW">Baja</option>
+            <option value="MEDIUM">Media</option>
+            <option value="HIGH">Alta</option>
+            <option value="URGENT">Urgente</option>
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="service-request-budget-min" className="block text-sm font-medium text-slate-700">
+            Presupuesto mínimo
+          </label>
+          <Input id="service-request-budget-min" name="budgetMin" type="number" min={0} placeholder="Presupuesto mínimo" />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="service-request-budget-max" className="block text-sm font-medium text-slate-700">
+            Presupuesto máximo
+          </label>
+          <Input id="service-request-budget-max" name="budgetMax" type="number" min={0} placeholder="Presupuesto máximo" />
+        </div>
       </div>
 
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
