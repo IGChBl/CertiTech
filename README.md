@@ -1,10 +1,10 @@
-# CertiTech - Marketplace de Servicios Tecnicos
+# CertiTech - Marketplace de Servicios Técnicos
 
-CertiTech es una plataforma web full-stack para conectar clientes con tecnicos y negocios de servicios tecnicos (electricidad, plomeria, aire acondicionado, carpinteria, etc.).
+CertiTech es una plataforma web full-stack para conectar clientes con técnicos y negocios de servicios técnicos (electricidad, plomería, aire acondicionado, carpintería, etc.).
 
-El proyecto esta construido como base MVP profesional, escalable y lista para evolucionar hacia produccion.
+El proyecto está construido como base MVP profesional, escalable y lista para evolucionar hacia producción.
 
-## Stack tecnologico
+## Stack tecnológico
 
 - Frontend: Next.js 16 (App Router) + React 19 + TypeScript
 - Estilos: Tailwind CSS v4 + componentes reutilizables propios
@@ -14,32 +14,33 @@ El proyecto esta construido como base MVP profesional, escalable y lista para ev
 - Auth: JWT stateless (access + refresh en cookies httpOnly)
 - Chat en tiempo real: Socket.IO (endpoint `pages/api/socket.ts`)
 - Validaciones: Zod
-- Seguridad basica: hash con bcrypt, rate limit en endpoints sensibles, guardas por rol
+- Seguridad básica: hash con bcrypt, rate limit en endpoints sensibles, guardas por rol
 
 ## Roles de usuario
 
 - Cliente
-- Tecnico / Proveedor
+- Técnico / Proveedor
 - Administrador
 
 ## Funcionalidades implementadas (MVP)
 
 - Landing profesional con buscador y secciones de valor
-- Registro/login para cliente y tecnico
-- Validacion de mayoria de edad (18+) para cualquier registro
-- Verificacion de correo (flujo token)
-- Verificacion de cliente y tecnico con estados y restricciones de uso
-- Foto de perfil para cliente y tecnico con subida local y optimizacion automatica
-- Recuperacion y restablecimiento de contrasena
-- Perfil tecnico publico con reputacion, categorias y estado de verificacion
-- Directorio de tecnicos con filtros
-- Publicacion y gestion de solicitudes de servicio
-- Favoritos de tecnicos
+- Registro/login para cliente y técnico
+- Validación de mayoría de edad (18+) para cualquier registro
+- Verificación de correo (flujo token)
+- Verificación de cliente y técnico con estados y restricciones de uso
+- Suscripciones técnicas (FREE, MONTHLY, YEARLY) con control de visibilidad y acceso
+- Foto de perfil para cliente y técnico con subida local y optimización automática
+- Recuperación y restablecimiento de contraseña
+- Perfil técnico público con reputación, categorías y estado de verificación
+- Directorio de técnicos con filtros
+- Publicación y gestión de solicitudes de servicio
+- Favoritos de técnicos
 - Valoraciones y comentarios post-servicio
 - Notificaciones internas
 - Chat en tiempo real con Socket.IO
-- Dashboards privados para cliente, tecnico y admin
-- Panel admin con metricas, reportes, usuarios, tecnicos, categorias y moderacion
+- Dashboards privados para cliente, técnico y admin
+- Panel admin con métricas, reportes, usuarios, técnicos, categorías y moderación
 
 ## Base de datos (Prisma)
 
@@ -57,8 +58,8 @@ Se modelaron entidades clave:
 Incluye:
 
 - `prisma/schema.prisma`
-- migracion inicial SQL: `prisma/migrations/20260416173000_init/migration.sql`
-- migracion de verificacion/edad: `prisma/migrations/20260505133500_verification_age_hardening/migration.sql`
+- migración inicial SQL: `prisma/migrations/20260416173000_init/migration.sql`
+- migración de verificación/edad: `prisma/migrations/20260505133500_verification_age_hardening/migration.sql`
 - seed limpio: `prisma/seed.ts`
 
 ## Variables de entorno
@@ -85,7 +86,7 @@ Variables principales:
 
 ## Sistema de foto de perfil
 
-CertiTech incluye un flujo completo para foto de perfil en cliente y tecnico:
+CertiTech incluye un flujo completo para foto de perfil en cliente y técnico:
 
 - Endpoint: `POST /api/profile/avatar` (subir/cambiar)
 - Endpoint: `DELETE /api/profile/avatar` (eliminar)
@@ -93,10 +94,10 @@ CertiTech incluye un flujo completo para foto de perfil en cliente y tecnico:
 - Carpeta local: `public/uploads/avatars`
 - Campo persistido: `avatarUrl` en `ClientProfile` y `TechnicianProfile`
 
-### Reglas de carga y optimizacion automatica
+### Reglas de carga y optimización automática
 
 - Formatos permitidos: JPG, JPEG, PNG, WEBP
-- Tamano maximo original: 8 MB
+- Tamaño máximo original: 8 MB
 - Procesamiento backend con `sharp`:
   - resize a `400x400`
   - recorte centrado (`cover`)
@@ -203,11 +204,85 @@ Comportamiento:
 
 Comportamiento:
 
-- Tecnico nuevo inicia en `IN_REVIEW`.
+- Tecnico nuevo inicia en `PENDING`.
+- Debe subir record policial obligatorio desde su dashboard antes de solicitar revision.
+- La solicitud de revision mueve su estado a `IN_REVIEW`.
 - No aparece en busquedas publicas hasta `VERIFIED`.
 - No recibe solicitudes hasta `VERIFIED`.
 - Si es rechazado, se guarda motivo y nota de revision.
 - Si `isEmailVerified` es `false`, no puede gestionar solicitudes ni contrataciones y no aparece en listados publicos.
+
+## Suscripciones tecnicas
+
+El tecnico ahora maneja estructura de suscripcion para habilitar visibilidad y captacion:
+
+- Planes:
+  - `FREE`
+  - `MONTHLY`
+  - `YEARLY`
+- Estados:
+  - `ACTIVE`
+  - `EXPIRED`
+  - `CANCELLED`
+  - `PENDING_PAYMENT`
+
+Campos agregados en `TechnicianProfile`:
+
+- `subscriptionPlan`
+- `subscriptionStatus`
+- `subscriptionStartDate`
+- `subscriptionEndDate`
+- `autoRenew`
+- `featuredUntil`
+- `lastPaymentDate`
+
+### Reglas de negocio activas
+
+- Tecnico `FREE`:
+  - puede registrarse y completar perfil
+  - NO aparece publicamente
+  - NO recibe nuevas solicitudes ni nuevos chats
+- Tecnico sin record policial:
+  - NO puede solicitar verificacion
+  - NO puede activar/renovar suscripcion de pago
+  - NO puede aparecer publicamente
+  - NO puede recibir nuevos contactos
+- Tecnico con plan pago `ACTIVE`:
+  - aparece en busquedas y perfil publico (si tambien esta verificado y tiene record policial cargado)
+  - puede recibir nuevos contactos
+- Tecnico `EXPIRED` / `CANCELLED` / `PENDING_PAYMENT`:
+  - mantiene cuenta y trabajos existentes
+  - pierde visibilidad y recepcion de nuevos contactos
+
+### Orden de visibilidad publica
+
+Los listados publicos priorizan tecnicos suscritos por plan:
+
+1. `YEARLY`
+2. `MONTHLY`
+3. `FREE` (actualmente oculto del listado publico)
+
+Tambien se prioriza `featuredUntil` cuando este activo.
+
+### Rutas nuevas de suscripcion
+
+- Tecnico:
+  - `GET /dashboard/tecnico/suscripcion`
+  - `POST /api/technician/subscription/renew` (solicitud interna, queda `PENDING_PAYMENT`)
+- Admin:
+  - `GET /dashboard/admin/suscripciones`
+  - `PATCH /api/admin/subscriptions` (cambiar plan/estado/extensiones/destacado)
+
+### Preparacion para Stripe (sin integrar aun)
+
+Se creo arquitectura desacoplada para evolucion a pagos reales:
+
+- `src/lib/subscriptions/billing.ts`
+- `src/lib/subscriptions/service.ts`
+- `src/lib/subscriptions/guards.ts`
+- `src/lib/subscriptions/ui.ts`
+
+Con esta base, la integracion de Stripe/checkout solo debera conectar el flujo de pago y actualizar estado de suscripcion.
 
 ## Flujo de verificacion de correo
 
@@ -264,7 +339,8 @@ npm run db:seed
 4. Registrar tecnico mayor de edad
 
 - Completar campos obligatorios (documento, foto, evidencias, categorias, experiencia).
-- Confirmar que queda en `IN_REVIEW`.
+- Confirmar que inicia en `PENDING`.
+- Subir record policial desde `Dashboard > Configuracion` y luego solicitar verificacion.
 - Confirmar que no aparece en listado publico hasta aprobacion.
 
 6. Probar foto de perfil
@@ -274,6 +350,14 @@ npm run db:seed
 - Confirmar vista previa y guardado exitoso.
 - Verificar persistencia en header, dashboard, chat, listados y panel admin.
 - Probar reemplazo y eliminacion de foto.
+
+7. Probar suscripciones tecnicas
+
+- Registrar tecnico nuevo: inicia como `FREE`.
+- Confirmar que no aparece en `/tecnicos`.
+- Desde admin, ir a `Dashboard > Suscripciones` y activar plan (`MONTHLY` o `YEARLY`) con estado `ACTIVE`.
+- Confirmar que ahora aparece en busquedas/listados publicos y puede recibir nuevos contactos.
+- Forzar expiracion manual (fecha pasada o estado `EXPIRED`) y validar que pierde visibilidad publica.
 
 5. Aprobar/rechazar desde admin
 
