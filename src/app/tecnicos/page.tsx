@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { TechnicianCard } from "@/components/cards/technician-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Card } from "@/components/ui/card";
+import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 type SearchParamValue = string | string[] | undefined;
 
@@ -36,8 +37,7 @@ export default async function TecnicosPage({
 
   const technicians = await prisma.technicianProfile.findMany({
     where: {
-      user: { status: "ACTIVE", isEmailVerified: true },
-      verification: "VERIFIED",
+      ...buildPublicTechnicianWhere(),
       ...(query
         ? {
             OR: [
@@ -65,14 +65,19 @@ export default async function TecnicosPage({
         },
       },
     },
-    orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+    orderBy: [
+      { featuredUntil: "desc" },
+      { subscriptionPlan: "desc" },
+      { averageRating: "desc" },
+      { totalReviews: "desc" },
+    ],
   });
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-12 md:px-6">
       <SectionTitle
-        title="Directorio de tecnicos"
-        subtitle="Filtra por categoria, ubicacion y nivel de confianza para contratar mejor."
+        title="Directorio de técnicos"
+        subtitle="Filtra por categoría, ubicación y nivel de confianza para contratar mejor."
       />
 
       <Card>
@@ -94,7 +99,7 @@ export default async function TecnicosPage({
             defaultValue={category}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
           >
-            <option value="">Todas las categorias</option>
+            <option value="">Todas las categorías</option>
             {categories.map((item) => (
               <option key={item.id} value={item.slug}>
                 {item.name}
@@ -121,6 +126,7 @@ export default async function TecnicosPage({
               verification: technician.verification,
               referencePriceMin: technician.referencePriceMin,
               avatarUrl: technician.avatarUrl,
+              subscriptionPlan: technician.subscriptionPlan,
               categories: technician.services.map((service) => service.category.name),
             }}
           />
@@ -129,7 +135,7 @@ export default async function TecnicosPage({
 
       {!technicians.length ? (
         <Card>
-          <p className="text-sm text-slate-600">No encontramos tecnicos con los filtros seleccionados.</p>
+          <p className="text-sm text-slate-600">No encontramos técnicos con los filtros seleccionados.</p>
         </Card>
       ) : null}
     </div>

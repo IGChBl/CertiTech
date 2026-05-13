@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const parsed = upsertCategorySchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Datos invalidos", issues: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos", issues: parsed.error.flatten() }, { status: 400 });
   }
 
   const category = await prisma.serviceCategory.upsert({
@@ -84,5 +84,5 @@ export async function DELETE(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({ message: "Categoria eliminada" });
+  return NextResponse.json({ message: "Categoría eliminada" });
 }

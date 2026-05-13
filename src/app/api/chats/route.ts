@@ -50,6 +50,7 @@ export async function GET() {
           participant.user.clientProfile?.fullName ??
           participant.user.technicianProfile?.displayName ??
           participant.user.email,
+        avatarUrl: participant.user.clientProfile?.avatarUrl ?? participant.user.technicianProfile?.avatarUrl ?? null,
         role: participant.user.roleId,
       })),
       latestMessage: chat.messages[0] ?? null,

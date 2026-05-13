@@ -54,6 +54,7 @@ export async function GET(
           message.sender.clientProfile?.fullName ??
           message.sender.technicianProfile?.displayName ??
           message.sender.email,
+        avatarUrl: message.sender.clientProfile?.avatarUrl ?? message.sender.technicianProfile?.avatarUrl ?? null,
       },
     })),
   });

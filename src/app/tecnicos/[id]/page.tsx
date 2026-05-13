@@ -6,6 +6,8 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { FavoriteButton } from "@/components/forms/favorite-button";
 import { StartChatButton } from "@/components/forms/start-chat-button";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { isTechnicianPubliclyVisible } from "@/lib/subscriptions/service";
+import { getSubscriptionPlanBadgeVariant, getSubscriptionPlanLabel } from "@/lib/subscriptions/ui";
 
 type Params = {
   id: string;
@@ -50,9 +52,15 @@ export default async function TecnicoDetallePage({
 
   if (
     !technician ||
-    technician.user.status !== "ACTIVE" ||
-    !technician.user.isEmailVerified ||
-    technician.verification !== "VERIFIED"
+    !isTechnicianPubliclyVisible({
+      verification: technician.verification,
+      subscriptionPlan: technician.subscriptionPlan,
+      subscriptionStatus: technician.subscriptionStatus,
+      subscriptionEndDate: technician.subscriptionEndDate,
+      policeRecordUrl: technician.policeRecordUrl,
+      userStatus: technician.user.status,
+      isEmailVerified: technician.user.isEmailVerified,
+    })
   ) {
     notFound();
   }
@@ -74,7 +82,10 @@ export default async function TecnicoDetallePage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="success">Tecnico verificado</Badge>
+            <Badge variant="success">Técnico verificado</Badge>
+            <Badge variant={getSubscriptionPlanBadgeVariant(technician.subscriptionPlan)}>
+              Premium {getSubscriptionPlanLabel(technician.subscriptionPlan)}
+            </Badge>
             <FavoriteButton technicianProfileId={technician.id} />
             <StartChatButton recipientUserId={technician.user.id} />
           </div>
@@ -117,7 +128,7 @@ export default async function TecnicoDetallePage({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-600">Este tecnico aun no tiene comentarios publicados.</p>
+          <p className="text-sm text-slate-600">Este técnico aún no tiene comentarios publicados.</p>
         )}
       </Card>
     </div>

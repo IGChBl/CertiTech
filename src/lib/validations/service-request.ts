@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const createServiceRequestSchema = z.object({
-  title: z.string().min(6, "Titulo muy corto").max(160),
-  categoryId: z.string().min(5, "Categoria requerida"),
+  title: z.string().min(6, "Título muy corto").max(160),
+  categoryId: z.string().min(5, "Categoría requerida"),
   description: z.string().min(20, "Describe mejor el problema").max(2000),
   city: z.string().min(2, "Ciudad requerida"),
   zone: z.string().max(120).optional(),

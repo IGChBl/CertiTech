@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TechnicianCard } from "@/components/cards/technician-card";
+import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 export default async function Home() {
   const [categories, featuredTechnicians] = await Promise.all([
@@ -20,11 +21,13 @@ export default async function Home() {
       },
     }),
     prisma.technicianProfile.findMany({
-      where: {
-        user: { status: "ACTIVE", isEmailVerified: true },
-        verification: "VERIFIED",
-      },
-      orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+      where: buildPublicTechnicianWhere(),
+      orderBy: [
+        { featuredUntil: "desc" },
+        { subscriptionPlan: "desc" },
+        { averageRating: "desc" },
+        { totalReviews: "desc" },
+      ],
       take: 6,
       include: {
         services: {
@@ -40,13 +43,13 @@ export default async function Home() {
     <div>
       <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-16 md:grid-cols-[1.2fr_0.8fr] md:px-6 md:py-20">
         <div className="space-y-6">
-          <Badge>Marketplace de servicios tecnicos</Badge>
+          <Badge>Marketplace de servicios técnicos</Badge>
           <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-slate-900 md:text-6xl">
-            Encuentra tecnicos confiables cerca de vos
+            Encuentra técnicos confiables cerca de vos
           </h1>
           <p className="max-w-2xl text-lg text-slate-600">
             Conectamos personas con expertos para resolver problemas reales en el hogar y negocio,
-            con perfiles profesionales, reputacion y chat en tiempo real.
+            con perfiles profesionales, reputación y chat en tiempo real.
           </p>
 
           <form action="/tecnicos" method="get" className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-lg md:flex-row">
@@ -60,41 +63,41 @@ export default async function Home() {
               />
             </div>
             <Button type="submit" className="h-11 px-6">
-              Buscar tecnico
+              Buscar técnico
             </Button>
           </form>
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" /> Tecnicos verificados
+              <ShieldCheck className="h-4 w-4 text-emerald-500" /> Técnicos verificados
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-amber-500" /> Reputacion transparente
+              <Star className="h-4 w-4 text-amber-500" /> Reputación transparente
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-sky-500" /> Respuesta agil
+              <CheckCircle2 className="h-4 w-4 text-sky-500" /> Respuesta ágil
             </span>
           </div>
         </div>
 
         <Card className="space-y-4 bg-slate-900 text-white">
-          <h2 className="text-2xl font-semibold">Beneficios para tecnicos</h2>
+          <h2 className="text-2xl font-semibold">Beneficios para técnicos</h2>
           <ul className="space-y-3 text-sm text-slate-200">
-            <li>Recibe solicitudes relevantes segun tus categorias.</li>
-            <li>Construye reputacion con valoraciones reales.</li>
+            <li>Recibe solicitudes relevantes según tus categorías.</li>
+            <li>Construye reputación con valoraciones reales.</li>
             <li>Gestiona chats y trabajos desde tu dashboard.</li>
             <li>Escala tu negocio con presencia digital profesional.</li>
           </ul>
           <Link href="/registro" className="inline-flex items-center gap-2 text-sm font-semibold text-white underline">
-            Crear perfil tecnico <ArrowRight className="h-4 w-4" />
+            Crear perfil técnico <ArrowRight className="h-4 w-4" />
           </Link>
         </Card>
       </section>
 
       <section className="mx-auto w-full max-w-7xl space-y-6 px-4 py-12 md:px-6">
         <SectionTitle
-          title="Categorias populares"
-          subtitle="Elige la especialidad que necesitas y conecta en minutos con tecnicos disponibles."
+          title="Categorías populares"
+          subtitle="Elige la especialidad que necesitas y conecta en minutos con técnicos disponibles."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {categories.map((category) => (
@@ -104,7 +107,7 @@ export default async function Home() {
               className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <p className="text-lg font-semibold text-slate-900">{category.name}</p>
-              <p className="mt-1 text-sm text-slate-600">{category._count.technicianServices} tecnicos activos</p>
+              <p className="mt-1 text-sm text-slate-600">{category._count.technicianServices} técnicos activos</p>
             </Link>
           ))}
         </div>
@@ -112,8 +115,8 @@ export default async function Home() {
 
       <section className="mx-auto w-full max-w-7xl space-y-6 px-4 py-12 md:px-6">
         <SectionTitle
-          title="Tecnicos destacados"
-          subtitle="Perfiles con mejor reputacion y experiencia en la plataforma."
+          title="Técnicos destacados"
+          subtitle="Perfiles con mejor reputación y experiencia en la plataforma."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {featuredTechnicians.map((technician) => (
@@ -131,6 +134,7 @@ export default async function Home() {
                 verification: technician.verification,
                 referencePriceMin: technician.referencePriceMin,
                 avatarUrl: technician.avatarUrl,
+                subscriptionPlan: technician.subscriptionPlan,
                 categories: technician.services.map((service) => service.category.name),
               }}
             />
@@ -142,15 +146,15 @@ export default async function Home() {
         {[
           {
             title: "1. Publica tu necesidad",
-            text: "Describe problema, categoria, ubicacion y presupuesto estimado.",
+            text: "Describe problema, categoría, ubicación y presupuesto estimado.",
           },
           {
-            title: "2. Compara tecnicos",
-            text: "Revisa experiencia, estrellas, comentarios y estado de verificacion.",
+            title: "2. Compara técnicos",
+            text: "Revisa experiencia, estrellas, comentarios y estado de verificación.",
           },
           {
             title: "3. Contrata y califica",
-            text: "Coordina por chat, completa el trabajo y deja tu valoracion.",
+            text: "Coordina por chat, completa el trabajo y deja tu valoración.",
           },
         ].map((item) => (
           <Card key={item.title}>
@@ -163,9 +167,9 @@ export default async function Home() {
       <section className="mx-auto w-full max-w-7xl px-4 py-16 md:px-6">
         <Card className="flex flex-col gap-6 bg-gradient-to-r from-slate-900 to-slate-700 text-white md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-3xl font-semibold">Listo para resolver tu proximo servicio tecnico?</h2>
+            <h2 className="text-3xl font-semibold">¿Listo para resolver tu próximo servicio técnico?</h2>
             <p className="mt-2 max-w-xl text-slate-200">
-              Crea tu cuenta gratis y conecta con tecnicos confiables de forma profesional y segura.
+              Crea tu cuenta gratis y conecta con técnicos confiables de forma profesional y segura.
             </p>
           </div>
           <Link href="/registro">

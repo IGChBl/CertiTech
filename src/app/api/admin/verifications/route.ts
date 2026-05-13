@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { hasTechnicianPoliceRecord, POLICE_RECORD_REQUIRED_MESSAGE } from "@/lib/subscriptions/service";
 
 const clientVerificationStates = ["PENDING", "BASIC_VERIFIED", "VERIFIED", "REJECTED"] as const;
 const technicianVerificationStates = ["PENDING", "IN_REVIEW", "VERIFIED", "REJECTED"] as const;
@@ -108,7 +109,7 @@ export async function PATCH(request: NextRequest) {
 
   if (targetType === "CLIENT") {
     if (!clientVerificationStates.includes(status as ClientVerificationState)) {
-      return NextResponse.json({ error: "Estado de verificacion de cliente invalido" }, { status: 400 });
+      return NextResponse.json({ error: "Estado de verificación de cliente inválido" }, { status: 400 });
     }
 
     if (status === "REJECTED" && !reason) {
@@ -153,13 +154,13 @@ export async function PATCH(request: NextRequest) {
       data: {
         userId: updated.user.id,
         type: "SYSTEM",
-        title: "Actualizacion de verificacion",
+        title: "Actualización de verificación",
         body:
           status === "REJECTED"
-            ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
+            ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
             : status === "PENDING"
-              ? "Tu cuenta esta pendiente de verificacion. Algunas funciones estaran limitadas hasta completar el proceso."
-              : "Tu verificacion de cliente fue actualizada exitosamente.",
+              ? "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso."
+              : "Tu verificación de cliente fue actualizada exitosamente.",
         link: "/dashboard/cliente/configuracion",
       },
     });
@@ -168,11 +169,24 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (!technicianVerificationStates.includes(status as TechnicianVerificationState)) {
-    return NextResponse.json({ error: "Estado de verificacion de tecnico invalido" }, { status: 400 });
+    return NextResponse.json({ error: "Estado de verificación de técnico inválido" }, { status: 400 });
   }
 
   if (status === "REJECTED" && !reason) {
     return NextResponse.json({ error: "Debes indicar el motivo del rechazo." }, { status: 400 });
+  }
+
+  const currentTechnicianProfile = await prisma.technicianProfile.findUnique({
+    where: { id: profileId },
+    select: { id: true, policeRecordUrl: true },
+  });
+
+  if (!currentTechnicianProfile) {
+    return NextResponse.json({ error: "Perfil técnico no encontrado." }, { status: 404 });
+  }
+
+  if ((status === "IN_REVIEW" || status === "VERIFIED") && !hasTechnicianPoliceRecord(currentTechnicianProfile.policeRecordUrl)) {
+    return NextResponse.json({ error: POLICE_RECORD_REQUIRED_MESSAGE }, { status: 400 });
   }
 
   const updated = await prisma.technicianProfile.update({
@@ -241,13 +255,13 @@ export async function PATCH(request: NextRequest) {
     data: {
       userId: updated.user.id,
       type: status === "VERIFIED" ? "TECHNICIAN_VERIFIED" : "SYSTEM",
-      title: "Actualizacion de verificacion tecnica",
+      title: "Actualización de verificación técnica",
       body:
         status === "VERIFIED"
-          ? "Tu perfil tecnico fue verificado. Ya puedes aparecer en busquedas y recibir solicitudes."
+          ? "Tu perfil técnico fue verificado. Activa o mantén una suscripción vigente para aparecer en búsquedas y recibir solicitudes."
           : status === "REJECTED"
-            ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
-            : "Tu perfil esta en revision. Podras aparecer en busquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
+            ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
+            : "Tu perfil está en revisión. Podrás aparecer en búsquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
       link: "/dashboard/tecnico/configuracion",
     },
   });

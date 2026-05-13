@@ -84,7 +84,7 @@ export async function GET() {
       })),
       topCategories: categoriesUsage.map((item) => ({
         categoryId: item.categoryId,
-        categoryName: categoriesMap.get(item.categoryId) ?? "Categoria",
+        categoryName: categoriesMap.get(item.categoryId) ?? "Categoría",
         total: item._count.categoryId,
       })),
       recentActivity: {
