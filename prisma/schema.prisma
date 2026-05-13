@@ -33,6 +33,19 @@ enum TechnicianVerificationStatus {
   REJECTED
 }
 
+enum SubscriptionPlan {
+  FREE
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING_PAYMENT
+}
+
 enum RequestUrgency {
   LOW
   MEDIUM
@@ -202,6 +215,13 @@ model TechnicianProfile {
   referencePriceMax   Int?
   isHomeService       Boolean                      @default(true)
   verification        TechnicianVerificationStatus @default(PENDING)
+  subscriptionPlan    SubscriptionPlan             @default(FREE)
+  subscriptionStatus  SubscriptionStatus           @default(ACTIVE)
+  subscriptionStartDate DateTime?
+  subscriptionEndDate DateTime?
+  autoRenew           Boolean                      @default(false)
+  featuredUntil       DateTime?
+  lastPaymentDate     DateTime?
   rejectionReason     String?
   verificationNote    String?
   verifiedAt          DateTime?
@@ -222,6 +242,9 @@ model TechnicianProfile {
 
   @@index([city])
   @@index([verification])
+  @@index([subscriptionStatus])
+  @@index([subscriptionPlan])
+  @@index([subscriptionEndDate])
 }
 
 model ServiceCategory {
