@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { getSubscriptionPlanBadgeVariant, getSubscriptionPlanLabel } from "@/lib/subscriptions/ui";
+import type { SubscriptionPlan } from "@prisma/client";
 
 type TechnicianCardProps = {
   technician: {
@@ -21,6 +23,7 @@ type TechnicianCardProps = {
     verification: "PENDING" | "IN_REVIEW" | "VERIFIED" | "REJECTED";
     referencePriceMin?: number | null;
     avatarUrl?: string | null;
+    subscriptionPlan: SubscriptionPlan;
     categories: string[];
   };
 };
@@ -36,9 +39,14 @@ export function TechnicianCard({ technician }: TechnicianCardProps) {
             {technician.businessName ? <p className="text-sm text-slate-600">{technician.businessName}</p> : null}
           </div>
         </div>
-        <Badge variant={getVerificationColor(technician.verification)}>
-          {getVerificationLabel(technician.verification)}
-        </Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={getSubscriptionPlanBadgeVariant(technician.subscriptionPlan)}>
+            Premium {getSubscriptionPlanLabel(technician.subscriptionPlan)}
+          </Badge>
+          <Badge variant={getVerificationColor(technician.verification)}>
+            {getVerificationLabel(technician.verification)}
+          </Badge>
+        </div>
       </div>
 
       <RatingStars rating={technician.averageRating} count={technician.totalReviews} />

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireRole } from "@/lib/auth/guards";
 import { createServiceRequestSchema } from "@/lib/validations/service-request";
 import { prisma } from "@/lib/prisma";
+import { requireTechnicianSubscriptionAccess } from "@/lib/subscriptions/guards";
+import { hasActivePaidSubscription, hasTechnicianPoliceRecord, POLICE_RECORD_REQUIRED_MESSAGE } from "@/lib/subscriptions/service";
 
 export async function GET() {
   const auth = await requireAuth();
@@ -49,34 +51,52 @@ export async function GET() {
     }
 
     const profile = auth.user.technicianProfile;
-    const isVerifiedTechnician = profile?.verification === "VERIFIED";
+    if (!profile) {
+      return NextResponse.json({
+        requests: [],
+        message: "No se encontró tu perfil técnico. Completa tu configuración para continuar.",
+      });
+    }
+
+    const isVerifiedTechnician = profile.verification === "VERIFIED";
 
     if (!isVerifiedTechnician) {
       return NextResponse.json({
         requests: [],
         message:
-          "Tu perfil esta en revision. Podras aparecer en busquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
+          "Tu perfil está en revisión. Podrás aparecer en búsquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
       });
     }
+
+    const subscriptionGate = requireTechnicianSubscriptionAccess({
+      subscriptionPlan: profile.subscriptionPlan,
+      subscriptionStatus: profile.subscriptionStatus,
+      subscriptionEndDate: profile.subscriptionEndDate,
+      policeRecordUrl: profile.policeRecordUrl,
+    });
+    const canReceiveNewRequests = !subscriptionGate.error;
+    const availableLeadFilters = canReceiveNewRequests
+      ? [
+          {
+            technicianId: null,
+            status: "PENDING" as const,
+            categoryId: {
+              in: (
+                await prisma.technicianService.findMany({
+                  where: { technicianId: profile.id },
+                  select: { categoryId: true },
+                })
+              ).map((service) => service.categoryId),
+            },
+          },
+        ]
+      : [];
 
     const requests = await prisma.serviceRequest.findMany({
       where: {
         OR: [
           { technicianId: auth.user.id },
-          {
-            technicianId: null,
-            status: "PENDING",
-            categoryId: {
-              in: profile
-                ? (
-                    await prisma.technicianService.findMany({
-                      where: { technicianId: profile.id },
-                      select: { categoryId: true },
-                    })
-                  ).map((service) => service.categoryId)
-                : [],
-            },
-          },
+          ...availableLeadFilters,
         ],
       },
       include: {
@@ -101,7 +121,14 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ requests });
+    return NextResponse.json({
+      requests,
+      message: canReceiveNewRequests
+        ? undefined
+        : !hasTechnicianPoliceRecord(profile.policeRecordUrl)
+          ? POLICE_RECORD_REQUIRED_MESSAGE
+          : "Tu suscripción actual no permite recibir nuevas solicitudes. Puedes gestionar trabajos ya asignados.",
+    });
   }
 
   const requests = await prisma.serviceRequest.findMany({
@@ -132,8 +159,8 @@ export async function POST(request: NextRequest) {
   if (!canRequestService) {
     const errorMessage =
       clientProfile?.verificationStatus === "REJECTED"
-        ? "Tu verificacion fue rechazada. Revisa el motivo y actualiza tu informacion para solicitar una nueva revision."
-        : "Tu cuenta esta pendiente de verificacion. Algunas funciones estaran limitadas hasta completar el proceso.";
+        ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
+        : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
 
     return NextResponse.json(
       {
@@ -156,7 +183,7 @@ export async function POST(request: NextRequest) {
   const parsed = createServiceRequestSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Datos invalidos", issues: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos", issues: parsed.error.flatten() }, { status: 400 });
   }
 
   const data = parsed.data;
@@ -168,6 +195,10 @@ export async function POST(request: NextRequest) {
         technicianProfile: {
           select: {
             verification: true,
+            subscriptionPlan: true,
+            subscriptionStatus: true,
+            subscriptionEndDate: true,
+            policeRecordUrl: true,
           },
         },
       },
@@ -177,12 +208,20 @@ export async function POST(request: NextRequest) {
       technician &&
       technician.status === "ACTIVE" &&
       technician.isEmailVerified &&
-      technician.technicianProfile?.verification === "VERIFIED";
+      technician.technicianProfile?.verification === "VERIFIED" &&
+      !!technician.technicianProfile &&
+      hasTechnicianPoliceRecord(technician.technicianProfile.policeRecordUrl) &&
+      hasActivePaidSubscription({
+        subscriptionPlan: technician.technicianProfile.subscriptionPlan,
+        subscriptionStatus: technician.technicianProfile.subscriptionStatus,
+        subscriptionEndDate: technician.technicianProfile.subscriptionEndDate,
+        policeRecordUrl: technician.technicianProfile.policeRecordUrl,
+      });
 
     if (!isAvailableTechnician) {
       return NextResponse.json(
         {
-          error: "Solo puedes contratar tecnicos verificados, activos y con correo confirmado.",
+          error: "Solo puedes contratar técnicos verificados con suscripción activa y correo confirmado.",
         },
         { status: 400 },
       );

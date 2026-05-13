@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 export async function GET() {
   const auth = await requireRole("CLIENT");
@@ -9,10 +10,7 @@ export async function GET() {
   const favorites = await prisma.favorite.findMany({
     where: {
       clientId: auth.user.id,
-      technicianProfile: {
-        user: { status: "ACTIVE", isEmailVerified: true },
-        verification: "VERIFIED",
-      },
+      technicianProfile: buildPublicTechnicianWhere(),
     },
     include: {
       technicianProfile: {
@@ -83,14 +81,13 @@ export async function POST(request: NextRequest) {
   const technician = await prisma.technicianProfile.findFirst({
     where: {
       id: technicianProfileId,
-      verification: "VERIFIED",
-      user: { status: "ACTIVE", isEmailVerified: true },
+      ...buildPublicTechnicianWhere(),
     },
     select: { id: true },
   });
 
   if (!technician) {
-    return NextResponse.json({ error: "Solo puedes guardar tecnicos verificados y activos." }, { status: 400 });
+    return NextResponse.json({ error: "Solo puedes guardar técnicos verificados y activos." }, { status: 400 });
   }
 
   await prisma.favorite.create({

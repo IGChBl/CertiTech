@@ -16,6 +16,19 @@ type TechnicianOption = {
   label: string;
 };
 
+async function readResponseData(response: Response): Promise<{ error?: string; message?: string }> {
+  const raw = await response.text();
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as { error?: string; message?: string };
+  } catch {
+    return {};
+  }
+}
+
 export function ServiceRequestForm({
   categories,
   technicians,
@@ -58,7 +71,7 @@ export function ServiceRequestForm({
       body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
+    const data = await readResponseData(response);
 
     if (!response.ok) {
       setError(data.error ?? "No se pudo crear la solicitud.");
@@ -74,14 +87,14 @@ export function ServiceRequestForm({
 
   return (
     <form className="space-y-3" onSubmit={onSubmit}>
-      <Input name="title" required placeholder="Titulo del problema o necesidad" />
+      <Input name="title" required placeholder="Título del problema o necesidad" />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <select
           name="categoryId"
           required
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
         >
-          <option value="">Selecciona categoria</option>
+          <option value="">Selecciona categoría</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
@@ -121,8 +134,8 @@ export function ServiceRequestForm({
           <option value="HIGH">Alta</option>
           <option value="URGENT">Urgente</option>
         </select>
-        <Input name="budgetMin" type="number" min={0} placeholder="Presupuesto min" />
-        <Input name="budgetMax" type="number" min={0} placeholder="Presupuesto max" />
+        <Input name="budgetMin" type="number" min={0} placeholder="Presupuesto mínimo" />
+        <Input name="budgetMax" type="number" min={0} placeholder="Presupuesto máximo" />
       </div>
 
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}

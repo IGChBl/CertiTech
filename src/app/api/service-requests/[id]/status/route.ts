@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guards";
 import { updateServiceStatusSchema } from "@/lib/validations/service-request";
 import { prisma } from "@/lib/prisma";
+import { hasTechnicianPoliceRecord, POLICE_RECORD_REQUIRED_MESSAGE } from "@/lib/subscriptions/service";
 
 export async function PATCH(
   request: NextRequest,
@@ -46,7 +47,16 @@ export async function PATCH(
     return NextResponse.json(
       {
         error:
-          "Tu perfil esta en revision. Podras aparecer en busquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
+          "Tu perfil está en revisión. Podrás aparecer en búsquedas y recibir solicitudes cuando sea aprobado por CertiTech.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (role === "TECHNICIAN" && !hasTechnicianPoliceRecord(auth.user.technicianProfile?.policeRecordUrl)) {
+    return NextResponse.json(
+      {
+        error: POLICE_RECORD_REQUIRED_MESSAGE,
       },
       { status: 403 },
     );
@@ -62,7 +72,7 @@ export async function PATCH(
   const parsed = updateServiceStatusSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Estado invalido" }, { status: 400 });
+    return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
   }
 
   const status = parsed.data.status;
@@ -96,8 +106,8 @@ export async function PATCH(
               : status === "COMPLETED"
                 ? "SERVICE_COMPLETED"
                 : "SYSTEM",
-        title: "Actualizacion de solicitud",
-        body: `La solicitud ${updated.title} ahora esta en estado ${status}.`,
+        title: "Actualización de solicitud",
+        body: `La solicitud ${updated.title} ahora está en estado ${status}.`,
         link: "/dashboard",
       },
     });

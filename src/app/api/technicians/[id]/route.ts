@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isTechnicianPubliclyVisible } from "@/lib/subscriptions/service";
 
 export async function GET(
   _request: Request,
@@ -37,11 +38,21 @@ export async function GET(
     },
   });
 
-  if (!technician || technician.user.status !== "ACTIVE" || !technician.user.isEmailVerified) {
+  if (!technician) {
     return NextResponse.json({ error: "Tecnico no encontrado" }, { status: 404 });
   }
 
-  if (technician.verification !== "VERIFIED") {
+  if (
+    !isTechnicianPubliclyVisible({
+      verification: technician.verification,
+      subscriptionPlan: technician.subscriptionPlan,
+      subscriptionStatus: technician.subscriptionStatus,
+      subscriptionEndDate: technician.subscriptionEndDate,
+      policeRecordUrl: technician.policeRecordUrl,
+      userStatus: technician.user.status,
+      isEmailVerified: technician.user.isEmailVerified,
+    })
+  ) {
     return NextResponse.json({ error: "Tecnico no encontrado" }, { status: 404 });
   }
 
@@ -65,6 +76,10 @@ export async function GET(
       totalReviews: technician.totalReviews,
       completedJobs: technician.completedJobs,
       verification: technician.verification,
+      subscriptionPlan: technician.subscriptionPlan,
+      subscriptionStatus: technician.subscriptionStatus,
+      subscriptionEndDate: technician.subscriptionEndDate,
+      featuredUntil: technician.featuredUntil,
       categories: technician.services.map((service) => ({
         id: service.category.id,
         name: service.category.name,
@@ -76,6 +91,7 @@ export async function GET(
         comment: review.comment,
         createdAt: review.createdAt,
         clientName: review.client.clientProfile?.fullName ?? "Cliente",
+        clientAvatarUrl: review.client.clientProfile?.avatarUrl ?? null,
       })),
     },
   });
