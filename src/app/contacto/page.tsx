@@ -8,8 +8,8 @@ export default function ContactoPage() {
 
       <Card className="space-y-3">
         <p className="text-sm text-slate-600">Correo: soporte@certitech.app</p>
-        <p className="text-sm text-slate-600">Telefono: +505 8888-0000</p>
-        <p className="text-sm text-slate-600">Horario de atencion: Lunes a viernes, 8:00 - 17:00</p>
+        <p className="text-sm text-slate-600">Teléfono: +505 8888-0000</p>
+        <p className="text-sm text-slate-600">Horario de atención: Lunes a viernes, 8:00 - 17:00</p>
       </Card>
     </div>
   );

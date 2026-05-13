@@ -6,9 +6,9 @@ export default function LoginPage() {
     <div className="px-4 py-12 md:px-6">
       <LoginForm />
       <p className="mt-4 text-center text-sm text-slate-600">
-        No tienes cuenta?{" "}
+        ¿No tienes cuenta?{" "}
         <Link href="/registro" className="font-semibold text-slate-900 underline">
-          Registrate
+          Regístrate
         </Link>
       </p>
     </div>

@@ -53,7 +53,7 @@ export async function SiteHeader() {
               </Link>
               <form action="/api/auth/logout" method="post">
                 <Button type="submit" variant="ghost">
-                  Cerrar sesion
+                  Cerrar sesión
                 </Button>
               </form>
             </>

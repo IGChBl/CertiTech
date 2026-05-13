@@ -1,17 +1,17 @@
 import { z } from "zod";
 
 const passwordRule = z
-  .string({ required_error: "La contrasena es requerida" })
+  .string({ required_error: "La contraseña es requerida" })
   .min(8, "Debe tener al menos 8 caracteres")
-  .regex(/[A-Z]/, "Debe incluir al menos una mayuscula")
-  .regex(/[0-9]/, "Debe incluir al menos un numero");
+  .regex(/[A-Z]/, "Debe incluir al menos una mayúscula")
+  .regex(/[0-9]/, "Debe incluir al menos un número");
 
 export const loginSchema = z.object({
-  email: z.string().email("Correo invalido").trim().toLowerCase(),
-  password: z.string().min(1, "La contrasena es requerida"),
+  email: z.string().email("Correo inválido").trim().toLowerCase(),
+  password: z.string().min(1, "La contraseña es requerida"),
 });
 
-const adultMessage = "Debes ser mayor de 18 anos para crear una cuenta en CertiTech.";
+const adultMessage = "Debes ser mayor de 18 años para crear una cuenta en CertiTech.";
 
 function isAdultDate(value: string) {
   const date = new Date(value);
@@ -33,7 +33,7 @@ function isAdultDate(value: string) {
 
 const birthDateRule = z
   .string({ required_error: "La fecha de nacimiento es obligatoria" })
-  .refine((value) => !Number.isNaN(new Date(value).getTime()), "Fecha de nacimiento invalida")
+  .refine((value) => !Number.isNaN(new Date(value).getTime()), "Fecha de nacimiento inválida")
   .refine((value) => isAdultDate(value), adultMessage);
 
 function normalizeDocumentNumber(value: string) {
@@ -62,8 +62,8 @@ function matchesCedulaBirthDate(identityDocumentNumber: string, birthDate: strin
 
 export const registerClientSchema = z
   .object({
-    email: z.string().email("Correo invalido").trim().toLowerCase(),
-    phone: z.string().min(8, "Telefono invalido"),
+    email: z.string().email("Correo inválido").trim().toLowerCase(),
+    phone: z.string().min(8, "Teléfono inválido"),
     password: passwordRule,
     fullName: z.string().min(3, "Nombre muy corto"),
     birthDate: birthDateRule,
@@ -71,14 +71,14 @@ export const registerClientSchema = z
       errorMap: () => ({ message: adultMessage }),
     }),
     city: z.string().min(2, "Ciudad requerida"),
-    zone: z.string().optional(),
+    zone: z.string().min(2, "Zona requerida"),
     bio: z.string().max(500).optional(),
     identityDocumentNumber: z
       .string()
       .trim()
       .regex(
         /^\d{3}-?\d{6}-?\d{4}[A-Za-z]$/,
-        "Cedula invalida. Usa formato 0013107910005J o 001-310791-0005J.",
+        "Cédula inválida. Usa formato 0013107910005J o 001-310791-0005J.",
       )
       .optional()
       .or(z.literal("")),
@@ -92,14 +92,14 @@ export const registerClientSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["identityDocumentNumber"],
-        message: "La cedula no coincide con la fecha de nacimiento.",
+        message: "La cédula no coincide con la fecha de nacimiento.",
       });
     }
   });
 
 export const registerTechnicianSchema = z.object({
-  email: z.string().email("Correo invalido").trim().toLowerCase(),
-  phone: z.string().min(8, "Telefono invalido"),
+  email: z.string().email("Correo inválido").trim().toLowerCase(),
+  phone: z.string().min(8, "Teléfono inválido"),
   password: passwordRule,
   displayName: z.string().min(3, "Nombre requerido"),
   businessName: z.string().max(120).optional(),
@@ -108,26 +108,19 @@ export const registerTechnicianSchema = z.object({
     errorMap: () => ({ message: adultMessage }),
   }),
   city: z.string().min(2, "Ciudad requerida"),
-  workZone: z.string().max(150).optional(),
-  description: z.string().min(20, "Describe mejor tu experiencia"),
+  workZone: z.string().min(2, "Zona de trabajo requerida").max(150, "Zona de trabajo muy larga"),
+  description: z.string().min(20, "Describe mejor tu experiencia profesional"),
   yearsExperience: z.number().int().min(0).max(60),
-  availabilityText: z.string().optional(),
-  scheduleText: z.string().optional(),
-  categoryIds: z.array(z.string()).min(1, "Selecciona al menos una categoria"),
-  referencePriceMin: z.number().int().min(0).optional(),
-  referencePriceMax: z.number().int().min(0).optional(),
-  identityDocumentUrl: z.string().url("Documento invalido"),
-  avatarUrl: z.string().url("Foto de perfil invalida").optional().or(z.literal("")),
-  workEvidenceUrls: z.array(z.string().url("Evidencia invalida")).min(1, "Sube al menos una evidencia de trabajo"),
-  certificationUrls: z.array(z.string().url("Certificacion invalida")).optional(),
-  policeRecordUrl: z.string().url("Record policial invalido").optional(),
+  availabilityText: z.string().min(3, "La disponibilidad es obligatoria"),
+  scheduleText: z.string().min(3, "El horario es obligatorio"),
+  categoryIds: z.array(z.string()).min(1, "Selecciona al menos una categoría"),
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Correo invalido").trim().toLowerCase(),
+  email: z.string().email("Correo inválido").trim().toLowerCase(),
 });
 
 export const resetPasswordSchema = z.object({
-  token: z.string().min(10, "Token invalido"),
+  token: z.string().min(10, "Token inválido"),
   password: passwordRule,
 });

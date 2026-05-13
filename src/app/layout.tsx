@@ -4,9 +4,9 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 
 export const metadata: Metadata = {
-  title: "CertiTech | Marketplace de Servicios Tecnicos",
+  title: "CertiTech | Marketplace de Servicios Técnicos",
   description:
-    "Encuentra tecnicos confiables para reparaciones, instalaciones y mantenimiento con una plataforma moderna y segura.",
+    "Encuentra técnicos confiables para reparaciones, instalaciones y mantenimiento con una plataforma moderna y segura.",
 };
 
 export const dynamic = "force-dynamic";

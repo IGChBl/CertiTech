@@ -2,25 +2,25 @@ export const APP_NAME = "CertiTech";
 
 export const PUBLIC_NAV = [
   { href: "/", label: "Inicio" },
-  { href: "/como-funciona", label: "Como funciona" },
-  { href: "/categorias", label: "Categorias" },
-  { href: "/tecnicos", label: "Tecnicos" },
+  { href: "/como-funciona", label: "Cómo funciona" },
+  { href: "/categorias", label: "Categorías" },
+  { href: "/tecnicos", label: "Técnicos" },
   { href: "/faq", label: "FAQ" },
   { href: "/contacto", label: "Contacto" },
 ];
 
 export const SERVICE_CATEGORIES = [
-  "Electrodomesticos",
+  "Electrodomésticos",
   "Electricidad",
-  "Plomeria",
+  "Plomería",
   "Aire acondicionado",
-  "Refrigeracion",
-  "Carpinteria",
+  "Refrigeración",
+  "Carpintería",
   "Pintura",
   "Soldadura",
   "Instalaciones",
   "Mantenimiento general",
-  "Mecanica basica",
+  "Mecánica básica",
   "Otros",
 ];
 

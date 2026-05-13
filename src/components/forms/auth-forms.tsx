@@ -68,7 +68,7 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(
-    search?.get("verified") === "1" ? "Correo verificado. Ya puedes iniciar sesion." : null,
+    search?.get("verified") === "1" ? "Correo verificado. Ya puedes iniciar sesión." : null,
   );
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -93,11 +93,11 @@ export function LoginForm() {
       const data = await readResponseData(response);
 
       if (!response.ok) {
-        setError(data.error ?? "No fue posible iniciar sesion");
+        setError(data.error ?? "No fue posible iniciar sesión");
         return;
       }
 
-      setSuccess("Sesion iniciada correctamente.");
+      setSuccess("Sesión iniciada correctamente.");
 
       const role = data.user?.role ?? "CLIENT";
       const destination =
@@ -110,7 +110,7 @@ export function LoginForm() {
       router.push(destination);
       router.refresh();
     } catch {
-      setError("No se pudo iniciar sesion en este momento. Intenta nuevamente.");
+      setError("No se pudo iniciar sesión en este momento. Intenta nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -118,14 +118,14 @@ export function LoginForm() {
 
   return (
     <Card className="mx-auto w-full max-w-lg space-y-4">
-      <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesion</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Correo</label>
           <Input type="email" name="email" required placeholder="correo@ejemplo.com" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Contrasena</label>
+          <label className="text-sm font-medium text-slate-700">Contraseña</label>
           <Input type="password" name="password" required placeholder="********" />
         </div>
 
@@ -164,7 +164,7 @@ export function RegisterTabs({ categories }: { categories: CategoryOption[] }) {
           }`}
           type="button"
         >
-          Soy tecnico
+          Soy técnico
         </button>
       </div>
 
@@ -235,46 +235,50 @@ function ClientRegisterForm() {
       <h2 className="text-xl font-semibold text-slate-900">Registro de cliente</h2>
       <form className="space-y-3" onSubmit={onSubmit}>
         <div>
-          <Input name="fullName" required placeholder="Nombre completo" />
+          <Input name="fullName" required placeholder="Ej. María López" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "fullName")} />
         </div>
         <div>
-          <Input name="email" type="email" required placeholder="Correo" />
+          <Input name="email" type="email" required placeholder="ejemplo@correo.com" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "email")} />
         </div>
         <div>
-          <Input name="phone" required placeholder="Telefono" />
+          <Input name="phone" required placeholder="Ej. 8888-8888 o +505 8888-8888" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "phone")} />
         </div>
         <div>
-          <Input name="birthDate" type="date" required />
+          <Input name="birthDate" type="date" required placeholder="dd/mm/aaaa" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "birthDate")} />
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <Input name="city" required placeholder="Ciudad" />
+            <Input name="city" required placeholder="Ej. Managua" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "city")} />
           </div>
           <div>
-            <Input name="zone" placeholder="Zona" />
+            <Input name="zone" required placeholder="Ej. Altamira, Linda Vista, Carretera Sur" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "zone")} />
           </div>
         </div>
         <div>
-          <Input name="password" type="password" required placeholder="Contrasena" />
+          <Input name="password" type="password" required placeholder="Mínimo 8 caracteres" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "password")} />
         </div>
         <div>
-          <Input name="identityDocumentNumber" placeholder="Numero de cedula (opcional)" />
+          <Input name="identityDocumentNumber" placeholder="Ej. 001-010190-0001A" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "identityDocumentNumber")} />
         </div>
         <div>
-          <Textarea name="bio" rows={3} placeholder="Cuentanos que servicios sueles necesitar" />
+          <Textarea
+            name="bio"
+            rows={3}
+            placeholder="Ej. reparación de lavadora, instalación eléctrica, mantenimiento de aire acondicionado"
+          />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "bio")} />
         </div>
         <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
           <input name="confirmedAdult" type="checkbox" required className="mt-0.5" />
-          Confirmo que soy mayor de 18 anos.
+          Confirmo que soy mayor de 18 años.
         </label>
         <FieldErrorBubble message={getFirstFieldError(fieldErrors, "confirmedAdult")} />
 
@@ -315,22 +319,12 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
     setFieldErrors({});
 
     if (!selected.length) {
-      setError("Selecciona al menos una categoria.");
+      setError("Selecciona al menos una categoría.");
       setLoading(false);
       return;
     }
 
     const formData = new FormData(event.currentTarget);
-    const workEvidenceUrls = String(formData.get("workEvidenceUrls") ?? "")
-      .split(/[\n,]/g)
-      .map((url) => url.trim())
-      .filter(Boolean);
-    const certificationUrls = String(formData.get("certificationUrls") ?? "")
-      .split(/[\n,]/g)
-      .map((url) => url.trim())
-      .filter(Boolean);
-    const referencePriceMinValue = String(formData.get("referencePriceMin") ?? "").trim();
-    const referencePriceMaxValue = String(formData.get("referencePriceMax") ?? "").trim();
 
     const payload = {
       displayName: String(formData.get("displayName") ?? ""),
@@ -346,13 +340,6 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
       yearsExperience: Number(formData.get("yearsExperience") ?? "0"),
       availabilityText: String(formData.get("availabilityText") ?? ""),
       scheduleText: String(formData.get("scheduleText") ?? ""),
-      referencePriceMin: referencePriceMinValue ? Number(referencePriceMinValue) : undefined,
-      referencePriceMax: referencePriceMaxValue ? Number(referencePriceMaxValue) : undefined,
-      avatarUrl: String(formData.get("avatarUrl") ?? ""),
-      identityDocumentUrl: String(formData.get("identityDocumentUrl") ?? ""),
-      workEvidenceUrls,
-      certificationUrls: certificationUrls.length ? certificationUrls : undefined,
-      policeRecordUrl: String(formData.get("policeRecordUrl") ?? "") || undefined,
       categoryIds: selected,
     };
 
@@ -369,18 +356,18 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
         if (data.issues?.fieldErrors) {
           setFieldErrors(data.issues.fieldErrors);
         }
-        setError(data.error ?? "No se pudo crear la cuenta tecnica.");
+        setError(data.error ?? "No se pudo crear la cuenta técnica.");
         return;
       }
 
-      setMessage("Perfil tecnico creado correctamente.");
+      setMessage("Perfil técnico creado correctamente.");
       const destination = data.emailVerification?.warning
         ? "/dashboard/tecnico?email_notice=delivery_failed"
         : "/dashboard/tecnico";
       router.push(destination);
       router.refresh();
     } catch {
-      setError("No se pudo completar el registro tecnico. Intenta nuevamente.");
+      setError("No se pudo completar el registro técnico. Intenta nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -388,48 +375,53 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
 
   return (
     <Card className="mx-auto w-full max-w-3xl space-y-4">
-      <h2 className="text-xl font-semibold text-slate-900">Registro tecnico</h2>
+      <h2 className="text-xl font-semibold text-slate-900">Registro técnico</h2>
       <form className="space-y-3" onSubmit={onSubmit}>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <Input name="displayName" required placeholder="Nombre o marca" />
+            <Input name="displayName" required placeholder="Ej. Juan Pérez / Refrigeración Pérez" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "displayName")} />
           </div>
           <div>
-            <Input name="businessName" placeholder="Nombre del negocio (opcional)" />
+            <Input name="businessName" placeholder="Ej. Taller Pérez" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "businessName")} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <Input name="email" type="email" required placeholder="Correo" />
+            <Input name="email" type="email" required placeholder="ejemplo@correo.com" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "email")} />
           </div>
           <div>
-            <Input name="phone" required placeholder="Telefono" />
+            <Input name="phone" required placeholder="Ej. 8888-8888 o +505 8888-8888" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "phone")} />
           </div>
         </div>
 
         <div>
-          <Input name="birthDate" type="date" required />
+          <Input name="birthDate" type="date" required placeholder="dd/mm/aaaa" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "birthDate")} />
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <Input name="city" required placeholder="Ciudad" />
+            <Input name="city" required placeholder="Ej. Managua" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "city")} />
           </div>
           <div>
-            <Input name="workZone" placeholder="Zona de trabajo" />
+            <Input name="workZone" required placeholder="Ej. Carretera a Masaya, Bello Horizonte, Ciudad Sandino" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "workZone")} />
           </div>
         </div>
 
         <div>
-          <Textarea name="description" rows={3} required placeholder="Descripcion profesional" />
+          <Textarea
+            name="description"
+            rows={3}
+            required
+            placeholder="Ej. Técnico en refrigeración con experiencia en mantenimiento de aires acondicionados y reparación de refrigeradoras."
+          />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "description")} />
         </div>
 
@@ -441,72 +433,32 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
               min={0}
               max={60}
               required
-              placeholder="Anios experiencia"
+              placeholder="Ej. 3"
             />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "yearsExperience")} />
           </div>
           <div>
-            <Input name="availabilityText" placeholder="Disponibilidad" />
+            <Input name="availabilityText" required placeholder="Ej. Lunes a sábado" />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "availabilityText")} />
           </div>
           <div>
-            <Input name="scheduleText" placeholder="Horario" />
+            <Input name="scheduleText" required placeholder="Ej. 8:00 a.m. - 5:00 p.m." />
             <FieldErrorBubble message={getFirstFieldError(fieldErrors, "scheduleText")} />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <Input name="referencePriceMin" type="number" min={0} placeholder="Precio referencial minimo" />
-            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "referencePriceMin")} />
-          </div>
-          <div>
-            <Input name="referencePriceMax" type="number" min={0} placeholder="Precio referencial maximo" />
-            <FieldErrorBubble message={getFirstFieldError(fieldErrors, "referencePriceMax")} />
-          </div>
-        </div>
-
         <div>
-          <Input name="avatarUrl" placeholder="URL de foto de perfil (opcional)" />
-          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "avatarUrl")} />
-        </div>
-        <div>
-          <Input name="identityDocumentUrl" required placeholder="URL de documento de identidad" />
-          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "identityDocumentUrl")} />
-        </div>
-        <div>
-          <Textarea
-            name="workEvidenceUrls"
-            rows={3}
-            required
-            placeholder="URLs de evidencias de trabajo (separa por coma o salto de linea)"
-          />
-          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "workEvidenceUrls")} />
-        </div>
-        <div>
-          <Textarea
-            name="certificationUrls"
-            rows={2}
-            placeholder="URLs de certificaciones (opcional, separa por coma o salto de linea)"
-          />
-          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "certificationUrls")} />
-        </div>
-        <div>
-          <Input name="policeRecordUrl" placeholder="URL de record policial (opcional)" />
-          <FieldErrorBubble message={getFirstFieldError(fieldErrors, "policeRecordUrl")} />
-        </div>
-        <div>
-          <Input name="password" type="password" required placeholder="Contrasena" />
+          <Input name="password" type="password" required placeholder="Mínimo 8 caracteres" />
           <FieldErrorBubble message={getFirstFieldError(fieldErrors, "password")} />
         </div>
         <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
           <input name="confirmedAdult" type="checkbox" required className="mt-0.5" />
-          Confirmo que soy mayor de 18 anos.
+          Confirmo que soy mayor de 18 años.
         </label>
         <FieldErrorBubble message={getFirstFieldError(fieldErrors, "confirmedAdult")} />
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-700">Categorias de servicio</p>
+          <p className="text-sm font-medium text-slate-700">Categorías de servicio</p>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
             {sortedCategories.map((category) => {
               const active = selected.includes(category.id);
@@ -534,7 +486,7 @@ function TechnicianRegisterForm({ categories }: { categories: CategoryOption[] }
         ) : null}
 
         <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Creando cuenta..." : "Crear perfil tecnico"}
+          {loading ? "Creando cuenta..." : "Crear perfil técnico"}
         </Button>
       </form>
     </Card>
@@ -571,7 +523,7 @@ export function ForgotPasswordForm({ token }: { token?: string }) {
 
       setMessage(
         data.previewToken
-          ? `Instruccion enviada. Token de prueba: ${data.previewToken}`
+          ? `Instrucción enviada. Token de prueba: ${data.previewToken}`
           : "Si el correo existe, enviamos instrucciones.",
       );
     } catch {
@@ -603,13 +555,13 @@ export function ForgotPasswordForm({ token }: { token?: string }) {
       const data = await readResponseData(response);
 
       if (!response.ok) {
-        setError(data.error ?? "No se pudo actualizar la contrasena.");
+        setError(data.error ?? "No se pudo actualizar la contraseña.");
         return;
       }
 
-      setMessage("Contrasena actualizada correctamente. Ya puedes iniciar sesion.");
+      setMessage("Contraseña actualizada correctamente. Ya puedes iniciar sesión.");
     } catch {
-      setError("No se pudo actualizar la contrasena en este momento.");
+      setError("No se pudo actualizar la contraseña en este momento.");
     } finally {
       setLoading(false);
     }
@@ -617,13 +569,13 @@ export function ForgotPasswordForm({ token }: { token?: string }) {
 
   return (
     <Card className="mx-auto w-full max-w-lg space-y-4">
-      <h1 className="text-2xl font-semibold text-slate-900">Recuperar contrasena</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">Recuperar contraseña</h1>
 
       {token ? (
         <form className="space-y-4" onSubmit={onResetPassword}>
-          <Input name="password" type="password" required placeholder="Nueva contrasena" />
+          <Input name="password" type="password" required placeholder="Nueva contraseña" />
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Actualizando..." : "Actualizar contrasena"}
+            {loading ? "Actualizando..." : "Actualizar contraseña"}
           </Button>
         </form>
       ) : (

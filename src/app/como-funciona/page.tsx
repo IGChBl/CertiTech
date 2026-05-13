@@ -5,27 +5,27 @@ export default function ComoFuncionaPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-12 md:px-6">
       <SectionTitle
-        title="Como funciona CertiTech"
-        subtitle="Un flujo claro para conectar clientes con tecnicos confiables en minutos."
+        title="Cómo funciona CertiTech"
+        subtitle="Un flujo claro para conectar clientes con técnicos confiables en minutos."
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
           {
             title: "Publica o busca",
-            text: "Crea una solicitud o busca tecnicos por categoria, ciudad y reputacion.",
+            text: "Crea una solicitud o busca técnicos por categoría, ciudad y reputación.",
           },
           {
             title: "Compara perfiles",
-            text: "Revisa experiencia, servicios, precios referenciales y verificacion.",
+            text: "Revisa experiencia, servicios, precios referenciales y verificación.",
           },
           {
             title: "Coordina por chat",
-            text: "Habla directo con el tecnico, comparte detalles y define fecha.",
+            text: "Habla directo con el técnico, comparte detalles y define fecha.",
           },
           {
             title: "Califica el resultado",
-            text: "Al terminar, deja tu valoracion y ayuda a la comunidad.",
+            text: "Al terminar, deja tu valoración y ayuda a la comunidad.",
           },
         ].map((item) => (
           <Card key={item.title}>

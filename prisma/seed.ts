@@ -7,17 +7,17 @@ const ADMIN_EMAIL = "admin@certitech.app";
 const ADMIN_PASSWORD = "Demo12345!";
 
 const categorySeed = [
-  { name: "Electrodomesticos", slug: "electrodomesticos", icon: "WashingMachine" },
+  { name: "Electrodomésticos", slug: "electrodomesticos", icon: "WashingMachine" },
   { name: "Electricidad", slug: "electricidad", icon: "Zap" },
-  { name: "Plomeria", slug: "plomeria", icon: "Droplets" },
+  { name: "Plomería", slug: "plomeria", icon: "Droplets" },
   { name: "Aire acondicionado", slug: "aire-acondicionado", icon: "Wind" },
-  { name: "Refrigeracion", slug: "refrigeracion", icon: "Snowflake" },
-  { name: "Carpinteria", slug: "carpinteria", icon: "Hammer" },
+  { name: "Refrigeración", slug: "refrigeracion", icon: "Snowflake" },
+  { name: "Carpintería", slug: "carpinteria", icon: "Hammer" },
   { name: "Pintura", slug: "pintura", icon: "PaintBucket" },
   { name: "Soldadura", slug: "soldadura", icon: "Wrench" },
   { name: "Instalaciones", slug: "instalaciones", icon: "Drill" },
   { name: "Mantenimiento general", slug: "mantenimiento-general", icon: "House" },
-  { name: "Mecanica basica", slug: "mecanica-basica", icon: "Car" },
+  { name: "Mecánica básica", slug: "mecanica-basica", icon: "Car" },
   { name: "Otros", slug: "otros", icon: "CircleEllipsis" },
 ];
 
@@ -30,8 +30,8 @@ async function upsertRoles() {
 
   const roleTechnician = await prisma.role.upsert({
     where: { code: "TECHNICIAN" },
-    update: { name: "Tecnico" },
-    create: { code: "TECHNICIAN", name: "Tecnico" },
+    update: { name: "Técnico" },
+    create: { code: "TECHNICIAN", name: "Técnico" },
   });
 
   const roleAdmin = await prisma.role.upsert({

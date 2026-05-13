@@ -4,19 +4,19 @@ import { SectionTitle } from "@/components/ui/section-title";
 export default function FaqPage() {
   const faqs = [
     {
-      q: "Como se seleccionan los tecnicos?",
-      a: "Cada tecnico construye su reputacion con valoraciones reales, experiencia y estado de verificacion.",
+      q: "¿Cómo se seleccionan los técnicos?",
+      a: "Cada técnico construye su reputación con valoraciones reales, experiencia y estado de verificación.",
     },
     {
-      q: "Puedo publicar una solicitud sin elegir tecnico?",
-      a: "Si. Puedes publicar abierta para que tecnicos de esa categoria la revisen.",
+      q: "¿Puedo publicar una solicitud sin elegir técnico?",
+      a: "Sí. Puedes publicar abierta para que técnicos de esa categoría la revisen.",
     },
     {
-      q: "La plataforma cobra por usarla?",
-      a: "El registro y la busqueda son gratuitos en este MVP. Las condiciones comerciales pueden evolucionar.",
+      q: "¿La plataforma cobra por usarla?",
+      a: "El registro y la búsqueda son gratuitos en este MVP. Las condiciones comerciales pueden evolucionar.",
     },
     {
-      q: "Como reporto un problema?",
+      q: "¿Cómo reporto un problema?",
       a: "Desde tu dashboard puedes crear reportes para que el equipo admin modere el caso.",
     },
   ];
