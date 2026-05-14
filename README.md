@@ -72,7 +72,8 @@ cp .env.example .env
 
 Variables principales:
 
-- `DATABASE_URL`
+- `DATABASE_URL` (app runtime con pooler de Supabase en `6543`)
+- `DIRECT_URL` (migraciones con conexión directa en `5432`)
 - `NEXT_PUBLIC_APP_URL`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
@@ -83,6 +84,17 @@ Variables principales:
 - `UPLOAD_PROVIDER` (`local`, preparado para `cloudinary`, `supabase`, `s3`)
 - `UPLOAD_LOCAL_PATH` (por defecto `public/uploads`)
 - variables de upload/cloud y mapas (preparadas)
+
+Configuración recomendada para Supabase:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true&sslmode=require&connection_limit=5"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require"
+```
+
+No es necesario alternar manualmente entre `6543` y `5432` durante el día a día:
+- La app usa `DATABASE_URL` (pooler)
+- Prisma migrate/db push usa `DIRECT_URL`
 
 ## Sistema de foto de perfil
 
@@ -369,16 +381,27 @@ npm run db:seed
 ## Nota Supabase / Prisma
 
 - En Supabase Postgres, aplica migraciones con el usuario que tenga permisos para crear enums y alterar columnas.
+- `DATABASE_URL` debe apuntar al pooler (`6543`) con `pgbouncer=true` y `connection_limit=5` para desarrollo estable con consultas concurrentes.
+- `DIRECT_URL` debe apuntar a la conexión directa (`5432`) para migraciones y tareas administrativas de Prisma.
 - Recomendado:
   - `npm run prisma:generate`
   - `npm run prisma:migrate`
   - `npm run db:seed`
 - Si ya existian datos de demo anteriores, el seed actual los limpia automaticamente (excepto el admin definido).
 
+### Estabilidad en desarrollo (cambio frecuente de roles)
+
+Para pruebas intensivas (cerrar sesión e iniciar sesión con cliente/técnico/admin repetidamente):
+- Usa `npm run dev` normalmente.
+- Si notas recargas agresivas o inestabilidad por hot reload, usa `npm run dev:stable` (webpack).
+- Evita correr múltiples servidores `next dev` al mismo tiempo sobre el mismo proyecto.
+- Si aparece un error de conexiones abiertas, detén el servidor, espera unos segundos y vuelve a iniciar.
+
 ## Scripts utiles
 
 ```bash
 npm run dev
+npm run dev:stable
 npm run build
 npm run start
 npm run lint

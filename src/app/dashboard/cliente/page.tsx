@@ -33,12 +33,23 @@ export default async function ClienteDashboardPage({
       : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
   const showEmailDeliveryWarning = params.email_notice === "delivery_failed";
 
-  const [requestsCount, favoritesCount, chatsCount, reviewsCount] = await Promise.all([
-    prisma.serviceRequest.count({ where: { clientId: user.id } }),
-    prisma.favorite.count({ where: { clientId: user.id } }),
-    prisma.chatParticipant.count({ where: { userId: user.id } }),
-    prisma.review.count({ where: { clientId: user.id } }),
-  ]);
+  let requestsCount = 0;
+  let favoritesCount = 0;
+  let chatsCount = 0;
+  let reviewsCount = 0;
+  let hasWarning = false;
+
+  try {
+    [requestsCount, favoritesCount, chatsCount, reviewsCount] = await prisma.$transaction([
+      prisma.serviceRequest.count({ where: { clientId: user.id } }),
+      prisma.favorite.count({ where: { clientId: user.id } }),
+      prisma.chatParticipant.count({ where: { userId: user.id } }),
+      prisma.review.count({ where: { clientId: user.id } }),
+    ]);
+  } catch (error) {
+    console.error("[dashboard][cliente] Error cargando métricas", error);
+    hasWarning = true;
+  }
 
   return (
     <DashboardShell
@@ -46,6 +57,14 @@ export default async function ClienteDashboardPage({
       subtitle="Administra tus solicitudes, conversaciones y técnicos favoritos."
       links={clientLinks}
     >
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
+
       <Card className="space-y-2">
         <div className="flex items-center gap-3 pb-1">
           <UserAvatar

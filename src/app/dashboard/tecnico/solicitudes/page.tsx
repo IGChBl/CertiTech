@@ -34,35 +34,42 @@ export default async function TecnicoSolicitudesPage() {
       })
     : false;
 
-  const categoryIds = profile
-    ? (
-        await prisma.technicianService.findMany({
-          where: { technicianId: profile.id },
-          select: { categoryId: true },
-        })
-      ).map((service) => service.categoryId)
-    : [];
-  const availableLeadFilters = canReceiveNewRequests
-    ? [{ technicianId: null, status: "PENDING" as const, categoryId: { in: categoryIds } }]
-    : [];
+  const { requests, hasWarning } = await (async () => {
+    try {
+      const categoryIds = profile
+        ? (
+            await prisma.technicianService.findMany({
+              where: { technicianId: profile.id },
+              select: { categoryId: true },
+            })
+          ).map((service) => service.categoryId)
+        : [];
 
-  const requests = await prisma.serviceRequest.findMany({
-    where: {
-      OR: [
-        { technicianId: user.id },
-        ...availableLeadFilters,
-      ],
-    },
-    include: {
-      category: true,
-      client: {
-        include: {
-          clientProfile: true,
+      const availableLeadFilters = canReceiveNewRequests
+        ? [{ technicianId: null, status: "PENDING" as const, categoryId: { in: categoryIds } }]
+        : [];
+
+      const data = await prisma.serviceRequest.findMany({
+        where: {
+          OR: [{ technicianId: user.id }, ...availableLeadFilters],
         },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+        include: {
+          category: true,
+          client: {
+            include: {
+              clientProfile: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return { requests: data, hasWarning: false };
+    } catch (error) {
+      console.error("[dashboard][tecnico][solicitudes] Error cargando solicitudes", error);
+      return { requests: [], hasWarning: true };
+    }
+  })();
 
   return (
     <DashboardShell
@@ -70,6 +77,14 @@ export default async function TecnicoSolicitudesPage() {
       subtitle="Acepta, rechaza o actualiza el estado de cada trabajo."
       links={[...technicianDashboardLinks]}
     >
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
+
       {!canReceiveNewRequests ? (
         <Card>
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{restrictionMessage}</p>

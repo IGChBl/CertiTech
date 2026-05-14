@@ -32,6 +32,14 @@ function getMessageFromStatus(status: string) {
     };
   }
 
+  if (status === "temporary-error") {
+    return {
+      title: "Verificación temporalmente no disponible",
+      body: "No pudimos validar tu correo por un problema temporal de conexión. Intenta nuevamente en unos segundos.",
+      tone: "warning" as const,
+    };
+  }
+
   return {
     title: "Token inválido",
     body: "El enlace de verificación no es válido o ya fue utilizado.",
@@ -44,8 +52,13 @@ export default async function VerificarCorreoPage({ searchParams }: { searchPara
   let status = params.status ?? "";
 
   if (!status && params.token) {
-    const result = await verifyEmailToken(params.token);
-    status = result.ok ? "success" : result.reason;
+    try {
+      const result = await verifyEmailToken(params.token);
+      status = result.ok ? "success" : result.reason;
+    } catch (error) {
+      console.error("[verificar-correo] error verificando token", error);
+      status = "temporary-error";
+    }
   }
 
   const message = getMessageFromStatus(status || "invalid");

@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma";
 
 const ADMIN_EMAIL = "admin@certitech.app";
 const ADMIN_PASSWORD = "Demo12345!";

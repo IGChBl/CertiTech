@@ -30,48 +30,58 @@ export default async function TecnicosPage({
   const city = toStringValue(params.city);
   const category = toStringValue(params.category);
 
-  const categories = await prisma.serviceCategory.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
-
-  const technicians = await prisma.technicianProfile.findMany({
-    where: {
-      ...buildPublicTechnicianWhere(),
-      ...(query
-        ? {
-            OR: [
-              { displayName: { contains: query, mode: "insensitive" } },
-              { businessName: { contains: query, mode: "insensitive" } },
-              { description: { contains: query, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-      ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
-      ...(category
-        ? {
+  const { categories, technicians, hasWarning } = await (async () => {
+    try {
+      const [categoriesData, techniciansData] = await Promise.all([
+        prisma.serviceCategory.findMany({
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+        }),
+        prisma.technicianProfile.findMany({
+          where: {
+            ...buildPublicTechnicianWhere(),
+            ...(query
+              ? {
+                  OR: [
+                    { displayName: { contains: query, mode: "insensitive" } },
+                    { businessName: { contains: query, mode: "insensitive" } },
+                    { description: { contains: query, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+            ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
+            ...(category
+              ? {
+                  services: {
+                    some: {
+                      OR: [{ category: { slug: category } }, { categoryId: category }],
+                    },
+                  },
+                }
+              : {}),
+          },
+          include: {
             services: {
-              some: {
-                OR: [{ category: { slug: category } }, { categoryId: category }],
+              include: {
+                category: true,
               },
             },
-          }
-        : {}),
-    },
-    include: {
-      services: {
-        include: {
-          category: true,
-        },
-      },
-    },
-    orderBy: [
-      { featuredUntil: "desc" },
-      { subscriptionPlan: "desc" },
-      { averageRating: "desc" },
-      { totalReviews: "desc" },
-    ],
-  });
+          },
+          orderBy: [
+            { featuredUntil: "desc" },
+            { subscriptionPlan: "desc" },
+            { averageRating: "desc" },
+            { totalReviews: "desc" },
+          ],
+        }),
+      ]);
+
+      return { categories: categoriesData, technicians: techniciansData, hasWarning: false };
+    } catch (error) {
+      console.error("[public][tecnicos] Error cargando directorio", error);
+      return { categories: [], technicians: [], hasWarning: true };
+    }
+  })();
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-12 md:px-6">
@@ -79,6 +89,14 @@ export default async function TecnicosPage({
         title="Directorio de técnicos"
         subtitle="Filtra por categoría, ubicación y nivel de confianza para contratar mejor."
       />
+
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
 
       <Card>
         <form className="grid gap-3 md:grid-cols-4" action="/tecnicos" method="get">

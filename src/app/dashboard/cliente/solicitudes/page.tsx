@@ -26,26 +26,45 @@ export default async function ClienteSolicitudesPage() {
       ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
       : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
 
-  const [categories, technicians, requests] = await Promise.all([
-    prisma.serviceCategory.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.technicianProfile.findMany({
-      where: buildPublicTechnicianWhere(),
-      orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { averageRating: "desc" }, { totalReviews: "desc" }],
-      take: 20,
-      select: { userId: true, displayName: true, businessName: true },
-    }),
-    prisma.serviceRequest.findMany({
-      where: { clientId: user.id },
-      include: {
-        category: true,
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const { categories, technicians, requests, hasWarning } = await (async () => {
+    try {
+      const [categoriesData, techniciansData, requestsData] = await Promise.all([
+        prisma.serviceCategory.findMany({
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        }),
+        prisma.technicianProfile.findMany({
+          where: buildPublicTechnicianWhere(),
+          orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { averageRating: "desc" }, { totalReviews: "desc" }],
+          take: 20,
+          select: { userId: true, displayName: true, businessName: true },
+        }),
+        prisma.serviceRequest.findMany({
+          where: { clientId: user.id },
+          include: {
+            category: true,
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+      return {
+        categories: categoriesData,
+        technicians: techniciansData,
+        requests: requestsData,
+        hasWarning: false,
+      };
+    } catch (error) {
+      console.error("[dashboard][cliente][solicitudes] Error cargando datos", error);
+      return {
+        categories: [],
+        technicians: [],
+        requests: [],
+        hasWarning: true,
+      };
+    }
+  })();
 
   return (
     <DashboardShell
@@ -53,6 +72,14 @@ export default async function ClienteSolicitudesPage() {
       subtitle="Publica nuevas necesidades y monitorea su estado de contratación."
       links={clientLinks}
     >
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
+
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Crear solicitud</h2>
         {canCreateRequests ? (

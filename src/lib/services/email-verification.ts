@@ -91,9 +91,19 @@ export async function verifyEmailToken(token: string) {
 
   const targetUser = await prisma.user.findUnique({
     where: { id: verification.userId },
-    include: {
-      role: true,
-      clientProfile: true,
+    select: {
+      id: true,
+      role: {
+        select: {
+          code: true,
+        },
+      },
+      clientProfile: {
+        select: {
+          id: true,
+          verificationStatus: true,
+        },
+      },
     },
   });
 

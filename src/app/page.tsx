@@ -9,35 +9,44 @@ import { TechnicianCard } from "@/components/cards/technician-card";
 import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 export default async function Home() {
-  const [categories, featuredTechnicians] = await Promise.all([
-    prisma.serviceCategory.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      take: 8,
-      include: {
-        _count: {
-          select: { technicianServices: true },
-        },
-      },
-    }),
-    prisma.technicianProfile.findMany({
-      where: buildPublicTechnicianWhere(),
-      orderBy: [
-        { featuredUntil: "desc" },
-        { subscriptionPlan: "desc" },
-        { averageRating: "desc" },
-        { totalReviews: "desc" },
-      ],
-      take: 6,
-      include: {
-        services: {
+  const { categories, featuredTechnicians, hasWarning } = await (async () => {
+    try {
+      const [categoriesData, featuredTechniciansData] = await Promise.all([
+        prisma.serviceCategory.findMany({
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+          take: 8,
           include: {
-            category: true,
+            _count: {
+              select: { technicianServices: true },
+            },
           },
-        },
-      },
-    }),
-  ]);
+        }),
+        prisma.technicianProfile.findMany({
+          where: buildPublicTechnicianWhere(),
+          orderBy: [
+            { featuredUntil: "desc" },
+            { subscriptionPlan: "desc" },
+            { averageRating: "desc" },
+            { totalReviews: "desc" },
+          ],
+          take: 6,
+          include: {
+            services: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      return { categories: categoriesData, featuredTechnicians: featuredTechniciansData, hasWarning: false };
+    } catch (error) {
+      console.error("[home] Error cargando datos de inicio", error);
+      return { categories: [], featuredTechnicians: [], hasWarning: true };
+    }
+  })();
 
   return (
     <div>
@@ -95,6 +104,14 @@ export default async function Home() {
       </section>
 
       <section className="mx-auto w-full max-w-7xl space-y-6 px-4 py-12 md:px-6">
+        {hasWarning ? (
+          <Card>
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+            </p>
+          </Card>
+        ) : null}
+
         <SectionTitle
           title="Categorías populares"
           subtitle="Elige la especialidad que necesitas y conecta en minutos con técnicos disponibles."

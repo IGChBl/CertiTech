@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentPageUser } from "@/lib/auth/session";
 import { ROLE_HOME } from "@/lib/constants";
 
 export async function requirePageAuth() {
-  const user = await getCurrentUser();
+  const user = await getCurrentPageUser();
 
   if (!user) {
     redirect("/login");

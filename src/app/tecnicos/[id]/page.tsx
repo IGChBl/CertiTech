@@ -20,35 +20,56 @@ export default async function TecnicoDetallePage({
 }) {
   const { id } = await params;
 
-  const technician = await prisma.technicianProfile.findUnique({
-    where: { id },
-    include: {
-      user: {
-        select: {
-          id: true,
-          status: true,
-          isEmailVerified: true,
-        },
-      },
-      services: {
+  const { technician, hasWarning } = await (async () => {
+    try {
+      const technicianData = await prisma.technicianProfile.findUnique({
+        where: { id },
         include: {
-          category: true,
-        },
-      },
-      reviews: {
-        where: { isHidden: false },
-        include: {
-          client: {
-            include: {
-              clientProfile: true,
+          user: {
+            select: {
+              id: true,
+              status: true,
+              isEmailVerified: true,
             },
           },
+          services: {
+            include: {
+              category: true,
+            },
+          },
+          reviews: {
+            where: { isHidden: false },
+            include: {
+              client: {
+                include: {
+                  clientProfile: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 12,
+          },
         },
-        orderBy: { createdAt: "desc" },
-        take: 12,
-      },
-    },
-  });
+      });
+
+      return { technician: technicianData, hasWarning: false };
+    } catch (error) {
+      console.error("[public][tecnico-detalle] Error cargando perfil técnico", error);
+      return { technician: null, hasWarning: true };
+    }
+  })();
+
+  if (hasWarning) {
+    return (
+      <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-12 md:px-6">
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   if (
     !technician ||

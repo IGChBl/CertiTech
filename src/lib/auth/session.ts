@@ -1,4 +1,6 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
+import { Prisma } from "@prisma/client";
 import { AUTH_COOKIE, AUTH_REFRESH_COOKIE } from "@/lib/constants";
 import {
   signAccessToken,
@@ -7,6 +9,59 @@ import {
   verifyRefreshToken,
 } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
+
+const currentUserSelect = {
+  id: true,
+  email: true,
+  phone: true,
+  birthDate: true,
+  status: true,
+  isEmailVerified: true,
+  emailVerifiedAt: true,
+  role: {
+    select: {
+      code: true,
+    },
+  },
+  clientProfile: {
+    select: {
+      id: true,
+      fullName: true,
+      city: true,
+      zone: true,
+      avatarUrl: true,
+      verificationStatus: true,
+      rejectionReason: true,
+    },
+  },
+  technicianProfile: {
+    select: {
+      id: true,
+      displayName: true,
+      businessName: true,
+      city: true,
+      workZone: true,
+      avatarUrl: true,
+      identityDocumentUrl: true,
+      workEvidenceJson: true,
+      certificationsJson: true,
+      policeRecordUrl: true,
+      galleryJson: true,
+      referencePriceMin: true,
+      referencePriceMax: true,
+      verification: true,
+      subscriptionPlan: true,
+      subscriptionStatus: true,
+      subscriptionStartDate: true,
+      subscriptionEndDate: true,
+      autoRenew: true,
+      featuredUntil: true,
+      lastPaymentDate: true,
+      rejectionReason: true,
+    },
+  },
+} satisfies Prisma.UserSelect;
 
 export async function setSessionCookies(payload: {
   userId: string;
@@ -77,6 +132,12 @@ export async function getSessionFromCookies() {
   }
 }
 
+export type SessionPayload = Awaited<ReturnType<typeof getSessionFromCookies>>;
+
+export async function getCurrentHeaderSession() {
+  return getSessionFromCookies();
+}
+
 export async function refreshSessionIfNeeded() {
   const store = await cookies();
   const refreshToken = store.get(AUTH_REFRESH_COOKIE)?.value;
@@ -90,7 +151,16 @@ export async function refreshSessionIfNeeded() {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      include: { role: true },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        role: {
+          select: {
+            code: true,
+          },
+        },
+      },
     });
 
     if (!user || user.status !== "ACTIVE") {
@@ -108,30 +178,46 @@ export async function refreshSessionIfNeeded() {
       email: user.email,
       role: user.role.code,
     };
-  } catch {
+  } catch (error) {
+    if (isPrismaConnectionTimeoutError(error)) {
+      console.warn("[auth][session] Timeout temporal al refrescar sesión");
+    }
+
     return null;
   }
 }
 
-export async function getCurrentUser() {
+async function resolveCurrentUser() {
   const session = (await getSessionFromCookies()) ?? (await refreshSessionIfNeeded());
 
   if (!session) {
     return null;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    include: {
-      role: true,
-      clientProfile: true,
-      technicianProfile: true,
-    },
-  });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: currentUserSelect,
+    });
 
-  if (!user || user.status !== "ACTIVE") {
+    if (!user || user.status !== "ACTIVE") {
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    if (isPrismaConnectionTimeoutError(error)) {
+      console.warn("[auth][session] Timeout temporal cargando usuario actual");
+      return null;
+    }
+
+    console.error("[auth][session] No se pudo cargar el usuario actual", error);
     return null;
   }
-
-  return user;
 }
+
+export async function getCurrentUser() {
+  return resolveCurrentUser();
+}
+
+export const getCurrentPageUser = cache(async () => resolveCurrentUser());

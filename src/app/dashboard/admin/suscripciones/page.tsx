@@ -22,19 +22,28 @@ function formatDate(value: Date | null | undefined) {
 export default async function AdminSuscripcionesPage() {
   await requirePageRole("ADMIN");
 
-  const technicians = await prisma.technicianProfile.findMany({
-    include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          isEmailVerified: true,
-          status: true,
+  const { technicians, hasWarning } = await (async () => {
+    try {
+      const data = await prisma.technicianProfile.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              isEmailVerified: true,
+              status: true,
+            },
+          },
         },
-      },
-    },
-    orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { updatedAt: "desc" }],
-  });
+        orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { updatedAt: "desc" }],
+      });
+
+      return { technicians: data, hasWarning: false };
+    } catch (error) {
+      console.error("[admin][suscripciones] Error cargando suscripciones", error);
+      return { technicians: [], hasWarning: true };
+    }
+  })();
 
   return (
     <DashboardShell
@@ -42,6 +51,14 @@ export default async function AdminSuscripcionesPage() {
       subtitle="Administra plan, estado y vencimiento para controlar visibilidad y captación."
       links={[...adminDashboardLinks]}
     >
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
+
       <Card className="space-y-2">
         <p className="text-sm text-slate-600">Total técnicos: {technicians.length}</p>
         <p className="text-sm text-slate-600">

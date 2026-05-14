@@ -24,71 +24,80 @@ function formatDate(value: Date | null) {
 export default async function AdminVerificacionesPage() {
   await requirePageRole("ADMIN");
 
-  const [clients, technicians] = await Promise.all([
-    prisma.clientProfile.findMany({
-      where: {
-        verificationStatus: {
-          in: ["PENDING", "BASIC_VERIFIED", "REJECTED"],
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            phone: true,
-            birthDate: true,
-            isEmailVerified: true,
-            createdAt: true,
-          },
-        },
-        verifiedBy: {
-          select: {
-            id: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.technicianProfile.findMany({
-      where: {
-        verification: {
-          in: ["PENDING", "IN_REVIEW", "REJECTED"],
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            phone: true,
-            birthDate: true,
-            isEmailVerified: true,
-            createdAt: true,
-          },
-        },
-        services: {
-          include: {
-            category: {
-              select: { id: true, name: true, slug: true },
+  const { clients, technicians, hasWarning } = await (async () => {
+    try {
+      const [clientsData, techniciansData] = await Promise.all([
+        prisma.clientProfile.findMany({
+          where: {
+            verificationStatus: {
+              in: ["PENDING", "BASIC_VERIFIED", "REJECTED"],
             },
           },
-        },
-        verificationRequests: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-        verifiedBy: {
-          select: {
-            id: true,
-            email: true,
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                phone: true,
+                birthDate: true,
+                isEmailVerified: true,
+                createdAt: true,
+              },
+            },
+            verifiedBy: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
           },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.technicianProfile.findMany({
+          where: {
+            verification: {
+              in: ["PENDING", "IN_REVIEW", "REJECTED"],
+            },
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                phone: true,
+                birthDate: true,
+                isEmailVerified: true,
+                createdAt: true,
+              },
+            },
+            services: {
+              include: {
+                category: {
+                  select: { id: true, name: true, slug: true },
+                },
+              },
+            },
+            verificationRequests: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+            verifiedBy: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+      return { clients: clientsData, technicians: techniciansData, hasWarning: false };
+    } catch (error) {
+      console.error("[admin][verificaciones] Error cargando verificaciones", error);
+      return { clients: [], technicians: [], hasWarning: true };
+    }
+  })();
 
   return (
     <DashboardShell
@@ -96,6 +105,14 @@ export default async function AdminVerificacionesPage() {
       subtitle="Aprueba o rechaza clientes y técnicos para fortalecer confianza y seguridad."
       links={[...adminDashboardLinks]}
     >
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
+
       <Card className="space-y-2">
         <p className="text-sm text-slate-600">Clientes por revisar: {clients.length}</p>
         <p className="text-sm text-slate-600">Técnicos por revisar: {technicians.length}</p>

@@ -46,31 +46,43 @@ export default async function TecnicoDashboardPage({
   const daysRemaining = profile ? getSubscriptionDaysRemaining(profile.subscriptionEndDate) : null;
   const expiringSoon = hasOperationalAccess && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 7;
 
-  const [assigned, completed, reviews, pendingRequests] = await Promise.all([
-    prisma.serviceRequest.count({ where: { technicianId: user.id } }),
-    prisma.serviceRequest.count({ where: { technicianId: user.id, status: "COMPLETED" } }),
-    prisma.review.count({
-      where: {
-        technicianProfileId: user.technicianProfile?.id,
-      },
-    }),
-    prisma.serviceRequest.count({
-      where: {
-        technicianId: null,
-        status: "PENDING",
-        categoryId: {
-          in: isVerified && hasOperationalAccess && user.technicianProfile
-            ? (
-                await prisma.technicianService.findMany({
-                  where: { technicianId: user.technicianProfile.id },
-                  select: { categoryId: true },
-                })
-              ).map((service) => service.categoryId)
-            : [],
+  let assigned = 0;
+  let completed = 0;
+  let reviews = 0;
+  let pendingRequests = 0;
+  let hasWarning = false;
+
+  try {
+    const availableCategoryIds =
+      isVerified && hasOperationalAccess && user.technicianProfile
+        ? (
+            await prisma.technicianService.findMany({
+              where: { technicianId: user.technicianProfile.id },
+              select: { categoryId: true },
+            })
+          ).map((service) => service.categoryId)
+        : [];
+
+    [assigned, completed, reviews, pendingRequests] = await prisma.$transaction([
+      prisma.serviceRequest.count({ where: { technicianId: user.id } }),
+      prisma.serviceRequest.count({ where: { technicianId: user.id, status: "COMPLETED" } }),
+      prisma.review.count({
+        where: {
+          technicianProfileId: user.technicianProfile?.id,
         },
-      },
-    }),
-  ]);
+      }),
+      prisma.serviceRequest.count({
+        where: {
+          technicianId: null,
+          status: "PENDING",
+          categoryId: { in: availableCategoryIds },
+        },
+      }),
+    ]);
+  } catch (error) {
+    console.error("[dashboard][tecnico] Error cargando métricas", error);
+    hasWarning = true;
+  }
 
   return (
     <DashboardShell
@@ -78,6 +90,14 @@ export default async function TecnicoDashboardPage({
       subtitle="Gestiona solicitudes, conversaciones y reputación desde un solo lugar."
       links={[...technicianDashboardLinks]}
     >
+      {hasWarning ? (
+        <Card>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
+          </p>
+        </Card>
+      ) : null}
+
       <Card className="space-y-2">
         <div className="flex items-center gap-3 pb-1">
           <UserAvatar
