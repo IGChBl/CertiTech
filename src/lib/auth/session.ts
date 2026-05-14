@@ -135,7 +135,11 @@ export async function getSessionFromCookies() {
 export type SessionPayload = Awaited<ReturnType<typeof getSessionFromCookies>>;
 
 export async function getCurrentHeaderSession() {
-  return getSessionFromCookies();
+  return (await getSessionFromCookies()) ?? (await refreshSessionIfNeeded());
+}
+
+export async function getCurrentSessionPayload() {
+  return (await getSessionFromCookies()) ?? (await refreshSessionIfNeeded());
 }
 
 export async function refreshSessionIfNeeded() {

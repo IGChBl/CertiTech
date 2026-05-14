@@ -1,17 +1,19 @@
-import Link from "next/link";
 import { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
+import { DashboardNavLinks } from "@/components/dashboard/dashboard-nav-links";
 
 export function DashboardShell({
   title,
   subtitle,
   children,
   links,
+  role,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   links?: Array<{ href: string; label: string }>;
+  role?: "CLIENT" | "TECHNICIAN" | "ADMIN";
 }) {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 md:px-6">
@@ -22,15 +24,7 @@ export function DashboardShell({
 
       {links?.length ? (
         <Card className="flex flex-wrap gap-2 p-3">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              {link.label}
-            </Link>
-          ))}
+          <DashboardNavLinks links={links} role={role} />
         </Card>
       ) : null}
 

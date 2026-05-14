@@ -3,6 +3,7 @@ import { getCurrentHeaderSession } from "@/lib/auth/session";
 import { APP_NAME, PUBLIC_NAV, ROLE_HOME } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { UnreadMessagesButton } from "@/components/chat/unread-messages-button";
 
 export async function SiteHeader() {
   const session = await getCurrentHeaderSession();
@@ -29,6 +30,7 @@ export async function SiteHeader() {
         <div className="flex items-center gap-2">
           {session ? (
             <>
+              <UnreadMessagesButton role={session.role} />
               <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1">
                 <UserAvatar name={session.email} size={30} />
                 <p className="hidden max-w-[140px] truncate text-xs font-medium text-slate-600 sm:block">

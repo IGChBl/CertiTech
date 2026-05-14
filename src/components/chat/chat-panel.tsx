@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { refreshUnreadMessagesCount } from "@/lib/chat/unread-count-store";
 
 type ChatItem = {
   id: string;
@@ -35,9 +36,23 @@ export function ChatPanel({
 }) {
   const [chats, setChats] = useState(initialChats);
   const [activeChatId, setActiveChatId] = useState(initialChats[0]?.id ?? null);
+  const activeChatIdRef = useRef<string | null>(initialChats[0]?.id ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  const markCurrentChatAsRead = useCallback(async (chatId: string) => {
+    await fetch(`/api/chats/${chatId}/read`, {
+      method: "POST",
+    }).catch(() => null);
+
+    socketRef?.emit("message-read", { chatId, userId: currentUserId });
+    refreshUnreadMessagesCount();
+  }, [currentUserId]);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
 
   useEffect(() => {
     let mounted = true;
@@ -50,8 +65,11 @@ export function ChatPanel({
       });
 
       socketRef.on("message:new", (message: ChatMessage & { chatId: string }) => {
-        if (message.chatId === activeChatId && mounted) {
+        if (message.chatId === activeChatIdRef.current && mounted) {
           setMessages((prev) => [...prev, message]);
+          if (message.sender.id !== currentUserId) {
+            void markCurrentChatAsRead(message.chatId);
+          }
         }
 
         setChats((prev) =>
@@ -64,6 +82,10 @@ export function ChatPanel({
               : chat,
           ),
         );
+
+        if (message.sender.id !== currentUserId) {
+          refreshUnreadMessagesCount();
+        }
       });
     }
 
@@ -74,7 +96,7 @@ export function ChatPanel({
       socketRef?.disconnect();
       socketRef = null;
     };
-  }, [activeChatId]);
+  }, [currentUserId, markCurrentChatAsRead]);
 
   useEffect(() => {
     if (!activeChatId) {
@@ -93,8 +115,10 @@ export function ChatPanel({
         setLoadingMessages(false);
       });
 
+    void markCurrentChatAsRead(activeChatId);
+
     socketRef?.emit("join-chat", activeChatId);
-  }, [activeChatId]);
+  }, [activeChatId, markCurrentChatAsRead]);
 
   const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId), [chats, activeChatId]);
   const activeOtherParticipant = useMemo(
