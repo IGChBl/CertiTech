@@ -30,58 +30,83 @@ export default async function TecnicosPage({
   const city = toStringValue(params.city);
   const category = toStringValue(params.category);
 
-  const { categories, technicians, hasWarning } = await (async () => {
-    try {
-      const [categoriesData, techniciansData] = await Promise.all([
-        prisma.serviceCategory.findMany({
-          where: { isActive: true },
-          orderBy: { name: "asc" },
-        }),
-        prisma.technicianProfile.findMany({
-          where: {
-            ...buildPublicTechnicianWhere(),
-            ...(query
-              ? {
-                  OR: [
-                    { displayName: { contains: query, mode: "insensitive" } },
-                    { businessName: { contains: query, mode: "insensitive" } },
-                    { description: { contains: query, mode: "insensitive" } },
-                  ],
-                }
-              : {}),
-            ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
-            ...(category
-              ? {
-                  services: {
-                    some: {
-                      OR: [{ category: { slug: category } }, { categoryId: category }],
-                    },
-                  },
-                }
-              : {}),
-          },
-          include: {
-            services: {
-              include: {
-                category: true,
+  const categoriesResult = await prisma.serviceCategory
+    .findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+      },
+    })
+    .then((data) => ({ categories: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[public][tecnicos] Error cargando categorías", error);
+      return { categories: [], hasWarning: true };
+    });
+
+  const techniciansResult = await prisma.technicianProfile
+    .findMany({
+      where: {
+        ...buildPublicTechnicianWhere(),
+        ...(query
+          ? {
+              OR: [
+                { displayName: { contains: query, mode: "insensitive" } },
+                { businessName: { contains: query, mode: "insensitive" } },
+                { description: { contains: query, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+        ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
+        ...(category
+          ? {
+              services: {
+                some: {
+                  OR: [{ category: { slug: category } }, { categoryId: category }],
+                },
               },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        displayName: true,
+        businessName: true,
+        city: true,
+        workZone: true,
+        description: true,
+        averageRating: true,
+        totalReviews: true,
+        verification: true,
+        referencePriceMin: true,
+        avatarUrl: true,
+        subscriptionPlan: true,
+        services: {
+          select: {
+            category: {
+              select: { name: true },
             },
           },
-          orderBy: [
-            { featuredUntil: "desc" },
-            { subscriptionPlan: "desc" },
-            { averageRating: "desc" },
-            { totalReviews: "desc" },
-          ],
-        }),
-      ]);
+        },
+      },
+      orderBy: [
+        { featuredUntil: "desc" },
+        { subscriptionPlan: "desc" },
+        { averageRating: "desc" },
+        { totalReviews: "desc" },
+      ],
+    })
+    .then((data) => ({ technicians: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[public][tecnicos] Error cargando técnicos", error);
+      return { technicians: [], hasWarning: true };
+    });
 
-      return { categories: categoriesData, technicians: techniciansData, hasWarning: false };
-    } catch (error) {
-      console.error("[public][tecnicos] Error cargando directorio", error);
-      return { categories: [], technicians: [], hasWarning: true };
-    }
-  })();
+  const categories = categoriesResult.categories;
+  const technicians = techniciansResult.technicians;
+  const hasWarning = categoriesResult.hasWarning || techniciansResult.hasWarning;
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-12 md:px-6">

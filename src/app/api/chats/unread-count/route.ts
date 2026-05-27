@@ -4,7 +4,7 @@ import { getUnreadMessagesCount } from "@/lib/chat/unread-count";
 import { isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
 
 export async function GET() {
-  const session = await getCurrentSessionPayload();
+  const session = await getCurrentSessionPayload({ allowRefresh: false });
 
   if (!session) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });

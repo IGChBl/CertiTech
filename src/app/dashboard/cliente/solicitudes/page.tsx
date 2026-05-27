@@ -26,45 +26,57 @@ export default async function ClienteSolicitudesPage() {
       ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
       : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
 
-  const { categories, technicians, requests, hasWarning } = await (async () => {
-    try {
-      const [categoriesData, techniciansData, requestsData] = await Promise.all([
-        prisma.serviceCategory.findMany({
-          where: { isActive: true },
-          orderBy: { name: "asc" },
-          select: { id: true, name: true },
-        }),
-        prisma.technicianProfile.findMany({
+  const categoriesResult = await prisma.serviceCategory
+    .findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    })
+    .then((data) => ({ categories: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[dashboard][cliente][solicitudes] Error cargando categorías", error);
+      return { categories: [], hasWarning: true };
+    });
+
+  const techniciansResult = canCreateRequests
+    ? await prisma.technicianProfile
+        .findMany({
           where: buildPublicTechnicianWhere(),
-          orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { averageRating: "desc" }, { totalReviews: "desc" }],
+          orderBy: [
+            { featuredUntil: "desc" },
+            { subscriptionPlan: "desc" },
+            { averageRating: "desc" },
+            { totalReviews: "desc" },
+          ],
           take: 20,
           select: { userId: true, displayName: true, businessName: true },
-        }),
-        prisma.serviceRequest.findMany({
-          where: { clientId: user.id },
-          include: {
-            category: true,
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-      ]);
+        })
+        .then((data) => ({ technicians: data, hasWarning: false }))
+        .catch((error) => {
+          console.error("[dashboard][cliente][solicitudes] Error cargando técnicos", error);
+          return { technicians: [], hasWarning: true };
+        })
+    : { technicians: [], hasWarning: false };
 
-      return {
-        categories: categoriesData,
-        technicians: techniciansData,
-        requests: requestsData,
-        hasWarning: false,
-      };
-    } catch (error) {
-      console.error("[dashboard][cliente][solicitudes] Error cargando datos", error);
-      return {
-        categories: [],
-        technicians: [],
-        requests: [],
-        hasWarning: true,
-      };
-    }
-  })();
+  const requestsResult = await prisma.serviceRequest
+    .findMany({
+      where: { clientId: user.id },
+      include: {
+        category: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    .then((data) => ({ requests: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[dashboard][cliente][solicitudes] Error cargando historial", error);
+      return { requests: [], hasWarning: true };
+    });
+
+  const categories = categoriesResult.categories;
+  const technicians = techniciansResult.technicians;
+  const requests = requestsResult.requests;
+  const hasWarning =
+    categoriesResult.hasWarning || techniciansResult.hasWarning || requestsResult.hasWarning;
 
   return (
     <DashboardShell

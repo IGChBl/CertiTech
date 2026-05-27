@@ -24,80 +24,91 @@ function formatDate(value: Date | null) {
 export default async function AdminVerificacionesPage() {
   await requirePageRole("ADMIN");
 
-  const { clients, technicians, hasWarning } = await (async () => {
-    try {
-      const [clientsData, techniciansData] = await Promise.all([
-        prisma.clientProfile.findMany({
-          where: {
-            verificationStatus: {
-              in: ["PENDING", "BASIC_VERIFIED", "REJECTED"],
-            },
+  const clientsResult = await prisma.clientProfile
+    .findMany({
+      where: {
+        verificationStatus: {
+          in: ["PENDING", "BASIC_VERIFIED", "REJECTED"],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            birthDate: true,
+            isEmailVerified: true,
+            createdAt: true,
           },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                phone: true,
-                birthDate: true,
-                isEmailVerified: true,
-                createdAt: true,
-              },
-            },
-            verifiedBy: {
-              select: {
-                id: true,
-                email: true,
-              },
-            },
+        },
+        verifiedBy: {
+          select: {
+            id: true,
+            email: true,
           },
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.technicianProfile.findMany({
-          where: {
-            verification: {
-              in: ["PENDING", "IN_REVIEW", "REJECTED"],
-            },
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                phone: true,
-                birthDate: true,
-                isEmailVerified: true,
-                createdAt: true,
-              },
-            },
-            services: {
-              include: {
-                category: {
-                  select: { id: true, name: true, slug: true },
-                },
-              },
-            },
-            verificationRequests: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
-            verifiedBy: {
-              select: {
-                id: true,
-                email: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-      ]);
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    .then((data) => ({ clients: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[admin][verificaciones] Error cargando clientes", error);
+      return { clients: [], hasWarning: true };
+    });
 
-      return { clients: clientsData, technicians: techniciansData, hasWarning: false };
-    } catch (error) {
-      console.error("[admin][verificaciones] Error cargando verificaciones", error);
-      return { clients: [], technicians: [], hasWarning: true };
-    }
-  })();
+  const techniciansResult = await prisma.technicianProfile
+    .findMany({
+      where: {
+        verification: {
+          in: ["PENDING", "IN_REVIEW", "REJECTED"],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            birthDate: true,
+            isEmailVerified: true,
+            createdAt: true,
+          },
+        },
+        services: {
+          select: {
+            category: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+        verificationRequests: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+        verifiedBy: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    .then((data) => ({ technicians: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[admin][verificaciones] Error cargando técnicos", error);
+      return { technicians: [], hasWarning: true };
+    });
+
+  const clients = clientsResult.clients;
+  const technicians = techniciansResult.technicians;
+  const hasWarning = clientsResult.hasWarning || techniciansResult.hasWarning;
 
   return (
     <DashboardShell

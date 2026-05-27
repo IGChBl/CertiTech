@@ -37,16 +37,6 @@ export async function POST(request: NextRequest) {
             code: true,
           },
         },
-        clientProfile: {
-          select: {
-            fullName: true,
-          },
-        },
-        technicianProfile: {
-          select: {
-            displayName: true,
-          },
-        },
       },
     });
 
@@ -70,10 +60,14 @@ export async function POST(request: NextRequest) {
       role: user.role.code,
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    void prisma.user
+      .update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      })
+      .catch((error) => {
+        console.warn("[auth][login] No se pudo actualizar lastLoginAt", error);
+      });
 
     return jsonOk({
       message: "Sesión iniciada",
@@ -81,7 +75,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         role: user.role.code,
-        name: user.clientProfile?.fullName ?? user.technicianProfile?.displayName ?? user.email,
+        name: user.email,
       },
     });
   } catch (error) {

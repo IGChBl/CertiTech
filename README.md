@@ -88,13 +88,14 @@ Variables principales:
 Configuración recomendada para Supabase:
 
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true&sslmode=require&connection_limit=5"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true&sslmode=require&connection_limit=10"
 DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require"
 ```
 
 No es necesario alternar manualmente entre `6543` y `5432` durante el día a día:
 - La app usa `DATABASE_URL` (pooler)
 - Prisma migrate/db push usa `DIRECT_URL`
+- Para desarrollo local con múltiples sesiones/roles simultáneos, usa `connection_limit=10`.
 
 ## Sistema de foto de perfil
 
@@ -381,7 +382,7 @@ npm run db:seed
 ## Nota Supabase / Prisma
 
 - En Supabase Postgres, aplica migraciones con el usuario que tenga permisos para crear enums y alterar columnas.
-- `DATABASE_URL` debe apuntar al pooler (`6543`) con `pgbouncer=true` y `connection_limit=5` para desarrollo estable con consultas concurrentes.
+- `DATABASE_URL` debe apuntar al pooler (`6543`) con `pgbouncer=true` y `connection_limit=10` para desarrollo estable con varias sesiones concurrentes.
 - `DIRECT_URL` debe apuntar a la conexión directa (`5432`) para migraciones y tareas administrativas de Prisma.
 - Recomendado:
   - `npm run prisma:generate`

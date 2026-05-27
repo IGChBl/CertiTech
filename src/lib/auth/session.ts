@@ -11,7 +11,40 @@ import {
 import { prisma } from "@/lib/prisma";
 import { isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
 
-const currentUserSelect = {
+const currentApiUserSelect = {
+  id: true,
+  email: true,
+  phone: true,
+  birthDate: true,
+  status: true,
+  isEmailVerified: true,
+  emailVerifiedAt: true,
+  role: {
+    select: {
+      code: true,
+    },
+  },
+  clientProfile: {
+    select: {
+      id: true,
+      fullName: true,
+      verificationStatus: true,
+    },
+  },
+  technicianProfile: {
+    select: {
+      id: true,
+      displayName: true,
+      verification: true,
+      policeRecordUrl: true,
+      subscriptionPlan: true,
+      subscriptionStatus: true,
+      subscriptionEndDate: true,
+    },
+  },
+} satisfies Prisma.UserSelect;
+
+const currentPageUserSelect = {
   id: true,
   email: true,
   phone: true,
@@ -134,12 +167,22 @@ export async function getSessionFromCookies() {
 
 export type SessionPayload = Awaited<ReturnType<typeof getSessionFromCookies>>;
 
+type SessionPayloadOptions = {
+  allowRefresh?: boolean;
+};
+
 export async function getCurrentHeaderSession() {
-  return (await getSessionFromCookies()) ?? (await refreshSessionIfNeeded());
+  return getSessionFromCookies();
 }
 
-export async function getCurrentSessionPayload() {
-  return (await getSessionFromCookies()) ?? (await refreshSessionIfNeeded());
+export async function getCurrentSessionPayload(options: SessionPayloadOptions = {}) {
+  const session = await getSessionFromCookies();
+
+  if (session || options.allowRefresh === false) {
+    return session;
+  }
+
+  return refreshSessionIfNeeded();
 }
 
 export async function refreshSessionIfNeeded() {
@@ -191,8 +234,8 @@ export async function refreshSessionIfNeeded() {
   }
 }
 
-async function resolveCurrentUser() {
-  const session = (await getSessionFromCookies()) ?? (await refreshSessionIfNeeded());
+async function resolveCurrentApiUser() {
+  const session = await getCurrentSessionPayload();
 
   if (!session) {
     return null;
@@ -201,7 +244,7 @@ async function resolveCurrentUser() {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: currentUserSelect,
+      select: currentApiUserSelect,
     });
 
     if (!user || user.status !== "ACTIVE") {
@@ -221,7 +264,34 @@ async function resolveCurrentUser() {
 }
 
 export async function getCurrentUser() {
-  return resolveCurrentUser();
+  return resolveCurrentApiUser();
 }
 
-export const getCurrentPageUser = cache(async () => resolveCurrentUser());
+export const getCurrentPageUser = cache(async () => {
+  const session = await getCurrentSessionPayload();
+
+  if (!session) {
+    return null;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: currentPageUserSelect,
+    });
+
+    if (!user || user.status !== "ACTIVE") {
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    if (isPrismaConnectionTimeoutError(error)) {
+      console.warn("[auth][session] Timeout temporal cargando usuario actual (page)");
+      return null;
+    }
+
+    console.error("[auth][session] No se pudo cargar el usuario actual (page)", error);
+    return null;
+  }
+});

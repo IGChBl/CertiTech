@@ -9,7 +9,7 @@ type UnreadCountSnapshot = {
   unreadCount: number;
 };
 
-const POLLING_INTERVAL_MS = 30_000;
+const POLLING_INTERVAL_MS = process.env.NODE_ENV === "development" ? 60_000 : 30_000;
 
 let snapshot: UnreadCountSnapshot = {
   unreadCount: 0,

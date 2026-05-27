@@ -9,44 +9,66 @@ import { TechnicianCard } from "@/components/cards/technician-card";
 import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 export default async function Home() {
-  const { categories, featuredTechnicians, hasWarning } = await (async () => {
-    try {
-      const [categoriesData, featuredTechniciansData] = await Promise.all([
-        prisma.serviceCategory.findMany({
-          where: { isActive: true },
-          orderBy: { name: "asc" },
-          take: 8,
-          include: {
-            _count: {
-              select: { technicianServices: true },
-            },
-          },
-        }),
-        prisma.technicianProfile.findMany({
-          where: buildPublicTechnicianWhere(),
-          orderBy: [
-            { featuredUntil: "desc" },
-            { subscriptionPlan: "desc" },
-            { averageRating: "desc" },
-            { totalReviews: "desc" },
-          ],
-          take: 6,
-          include: {
-            services: {
-              include: {
-                category: true,
+  const categoriesResult = await prisma.serviceCategory
+    .findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      take: 8,
+      include: {
+        _count: {
+          select: { technicianServices: true },
+        },
+      },
+    })
+    .then((data) => ({ categories: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[home] Error cargando categorías", error);
+      return { categories: [], hasWarning: true };
+    });
+
+  const featuredTechniciansResult = await prisma.technicianProfile
+    .findMany({
+      where: buildPublicTechnicianWhere(),
+      orderBy: [
+        { featuredUntil: "desc" },
+        { subscriptionPlan: "desc" },
+        { averageRating: "desc" },
+        { totalReviews: "desc" },
+      ],
+      take: 6,
+      select: {
+        id: true,
+        displayName: true,
+        businessName: true,
+        city: true,
+        workZone: true,
+        description: true,
+        averageRating: true,
+        totalReviews: true,
+        verification: true,
+        referencePriceMin: true,
+        avatarUrl: true,
+        subscriptionPlan: true,
+        services: {
+          select: {
+            category: {
+              select: {
+                name: true,
               },
             },
           },
-        }),
-      ]);
+        },
+      },
+    })
+    .then((data) => ({ featuredTechnicians: data, hasWarning: false }))
+    .catch((error) => {
+      console.error("[home] Error cargando técnicos destacados", error);
+      return { featuredTechnicians: [], hasWarning: true };
+    });
 
-      return { categories: categoriesData, featuredTechnicians: featuredTechniciansData, hasWarning: false };
-    } catch (error) {
-      console.error("[home] Error cargando datos de inicio", error);
-      return { categories: [], featuredTechnicians: [], hasWarning: true };
-    }
-  })();
+  const categories = categoriesResult.categories;
+  const featuredTechnicians = featuredTechniciansResult.featuredTechnicians;
+  const hasWarning = categoriesResult.hasWarning || featuredTechniciansResult.hasWarning;
 
   return (
     <div>

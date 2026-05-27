@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
+import { getPrismaFriendlyErrorMessage, isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -67,42 +68,77 @@ export async function GET(request: NextRequest) {
 
   const orderBy = [...rankingOrder, ...sortOrder];
 
-  const technicians = await prisma.technicianProfile.findMany({
-    where,
-    include: {
-      services: {
-        include: {
-          category: true,
+  try {
+    const technicians = await prisma.technicianProfile.findMany({
+      where,
+      select: {
+        id: true,
+        userId: true,
+        displayName: true,
+        businessName: true,
+        city: true,
+        workZone: true,
+        description: true,
+        yearsExperience: true,
+        availabilityText: true,
+        avatarUrl: true,
+        averageRating: true,
+        totalReviews: true,
+        completedJobs: true,
+        verification: true,
+        subscriptionPlan: true,
+        subscriptionStatus: true,
+        featuredUntil: true,
+        isHomeService: true,
+        referencePriceMin: true,
+        referencePriceMax: true,
+        services: {
+          select: {
+            category: {
+              select: {
+                name: true,
+              },
+            },
+          },
         },
       },
-    },
-    orderBy,
-    take: 50,
-  });
+      orderBy,
+      take: 50,
+    });
 
-  return NextResponse.json({
-    technicians: technicians.map((tech) => ({
-      id: tech.id,
-      userId: tech.userId,
-      displayName: tech.displayName,
-      businessName: tech.businessName,
-      city: tech.city,
-      workZone: tech.workZone,
-      description: tech.description,
-      yearsExperience: tech.yearsExperience,
-      availabilityText: tech.availabilityText,
-      avatarUrl: tech.avatarUrl,
-      averageRating: tech.averageRating,
-      totalReviews: tech.totalReviews,
-      completedJobs: tech.completedJobs,
-      verification: tech.verification,
-      subscriptionPlan: tech.subscriptionPlan,
-      subscriptionStatus: tech.subscriptionStatus,
-      featuredUntil: tech.featuredUntil,
-      isHomeService: tech.isHomeService,
-      referencePriceMin: tech.referencePriceMin,
-      referencePriceMax: tech.referencePriceMax,
-      categories: tech.services.map((service) => service.category.name),
-    })),
-  });
+    return NextResponse.json({
+      technicians: technicians.map((tech) => ({
+        id: tech.id,
+        userId: tech.userId,
+        displayName: tech.displayName,
+        businessName: tech.businessName,
+        city: tech.city,
+        workZone: tech.workZone,
+        description: tech.description,
+        yearsExperience: tech.yearsExperience,
+        availabilityText: tech.availabilityText,
+        avatarUrl: tech.avatarUrl,
+        averageRating: tech.averageRating,
+        totalReviews: tech.totalReviews,
+        completedJobs: tech.completedJobs,
+        verification: tech.verification,
+        subscriptionPlan: tech.subscriptionPlan,
+        subscriptionStatus: tech.subscriptionStatus,
+        featuredUntil: tech.featuredUntil,
+        isHomeService: tech.isHomeService,
+        referencePriceMin: tech.referencePriceMin,
+        referencePriceMax: tech.referencePriceMax,
+        categories: tech.services.map((service) => service.category.name),
+      })),
+    });
+  } catch (error) {
+    const status = isPrismaConnectionTimeoutError(error) ? 503 : 500;
+    return NextResponse.json(
+      {
+        technicians: [],
+        error: getPrismaFriendlyErrorMessage(error, "No se pudieron cargar los técnicos en este momento."),
+      },
+      { status },
+    );
+  }
 }

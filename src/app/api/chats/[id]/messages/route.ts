@@ -14,6 +14,10 @@ async function assertParticipant(chatId: string, userId: string) {
         userId,
       },
     },
+    select: {
+      chatId: true,
+      userId: true,
+    },
   });
 }
 
@@ -36,11 +40,28 @@ export async function GET(
 
     const messages = await prisma.message.findMany({
       where: { chatId: id },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        imageUrl: true,
+        createdAt: true,
+        isRead: true,
         sender: {
-          include: {
-            clientProfile: true,
-            technicianProfile: true,
+          select: {
+            id: true,
+            email: true,
+            clientProfile: {
+              select: {
+                fullName: true,
+                avatarUrl: true,
+              },
+            },
+            technicianProfile: {
+              select: {
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },
@@ -123,15 +144,15 @@ export async function POST(
       },
     });
 
-    for (const recipient of recipients) {
-      await prisma.notification.create({
-        data: {
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map((recipient) => ({
           userId: recipient.userId,
           type: "NEW_MESSAGE",
           title: "Tienes un nuevo mensaje",
           body: parsed.data.content.slice(0, 100),
           link: "/dashboard/cliente/chats",
-        },
+        })),
       });
     }
 

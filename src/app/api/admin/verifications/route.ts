@@ -15,81 +15,99 @@ export async function GET(request: NextRequest) {
 
   const type = request.nextUrl.searchParams.get("type")?.toUpperCase() ?? "ALL";
 
-  const [clients, technicians] = await Promise.all([
-    type === "TECHNICIAN"
-      ? Promise.resolve([])
-      : prisma.clientProfile.findMany({
-          where: {
-            verificationStatus: {
-              in: ["PENDING", "BASIC_VERIFIED", "REJECTED"],
-            },
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                phone: true,
-                birthDate: true,
-                isEmailVerified: true,
-                createdAt: true,
+  try {
+    const clients =
+      type === "TECHNICIAN"
+        ? []
+        : await prisma.clientProfile.findMany({
+            where: {
+              verificationStatus: {
+                in: ["PENDING", "BASIC_VERIFIED", "REJECTED"],
               },
             },
-            verifiedBy: {
-              select: {
-                id: true,
-                email: true,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  phone: true,
+                  birthDate: true,
+                  isEmailVerified: true,
+                  createdAt: true,
+                },
               },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-    type === "CLIENT"
-      ? Promise.resolve([])
-      : prisma.technicianProfile.findMany({
-          where: {
-            verification: {
-              in: ["PENDING", "IN_REVIEW", "REJECTED"],
-            },
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                phone: true,
-                birthDate: true,
-                isEmailVerified: true,
-                createdAt: true,
-              },
-            },
-            services: {
-              include: {
-                category: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
+              verifiedBy: {
+                select: {
+                  id: true,
+                  email: true,
                 },
               },
             },
-            verificationRequests: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
-            verifiedBy: {
-              select: {
-                id: true,
-                email: true,
+            orderBy: { createdAt: "desc" },
+          });
+
+    const technicians =
+      type === "CLIENT"
+        ? []
+        : await prisma.technicianProfile.findMany({
+            where: {
+              verification: {
+                in: ["PENDING", "IN_REVIEW", "REJECTED"],
               },
             },
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-  ]);
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  phone: true,
+                  birthDate: true,
+                  isEmailVerified: true,
+                  createdAt: true,
+                },
+              },
+              services: {
+                select: {
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                      slug: true,
+                    },
+                  },
+                },
+              },
+              verificationRequests: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  status: true,
+                  createdAt: true,
+                },
+              },
+              verifiedBy: {
+                select: {
+                  id: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          });
 
-  return NextResponse.json({ clients, technicians });
+    return NextResponse.json({ clients, technicians });
+  } catch (error) {
+    console.error("[api][admin][verifications] Error cargando verificaciones", error);
+    return NextResponse.json(
+      {
+        clients: [],
+        technicians: [],
+        warning: "La base de datos está ocupada temporalmente. Intenta nuevamente en unos segundos.",
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function PATCH(request: NextRequest) {
