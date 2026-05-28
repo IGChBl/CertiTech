@@ -8,6 +8,8 @@ import { StartChatButton } from "@/components/forms/start-chat-button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { isTechnicianPubliclyVisible } from "@/lib/subscriptions/service";
 import { getSubscriptionPlanBadgeVariant, getSubscriptionPlanLabel } from "@/lib/subscriptions/ui";
+import { MapPin } from "lucide-react";
+import { LeafletMapViewerWrapper } from "@/components/maps/leaflet-map-viewer-wrapper";
 
 type Params = {
   id: string;
@@ -124,6 +126,26 @@ export default async function TecnicoDetallePage({
           ))}
         </div>
       </Card>
+
+      {technician.latitude && technician.longitude ? (
+        <Card className="space-y-3">
+          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+            <span className="inline-block p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+              <MapPin className="h-5 w-5" />
+            </span>
+            Ubicación del Taller
+          </h2>
+          <p className="text-sm text-slate-500">
+            Encuentra el taller físico de {technician.displayName} en Managua.
+          </p>
+          <LeafletMapViewerWrapper
+            lat={technician.latitude}
+            lng={technician.longitude}
+            displayName={technician.displayName}
+            businessName={technician.businessName}
+          />
+        </Card>
+      ) : null}
 
       <Card className="space-y-3">
         <h2 className="text-xl font-semibold text-slate-900">Comentarios recientes</h2>

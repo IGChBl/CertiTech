@@ -23,6 +23,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "jose": "^5.10.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "nodemailer": "^8.0.7",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19",

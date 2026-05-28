@@ -206,6 +206,8 @@ model TechnicianProfile {
   yearsExperience     Int                          @default(0)
   availabilityText    String?
   scheduleText        String?
+  latitude            Float?
+  longitude           Float?
   avatarUrl           String?
   identityDocumentUrl String?
   galleryJson         Json?

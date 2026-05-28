@@ -40,6 +40,8 @@ const currentApiUserSelect = {
       subscriptionPlan: true,
       subscriptionStatus: true,
       subscriptionEndDate: true,
+      latitude: true,
+      longitude: true,
     },
   },
 } satisfies Prisma.UserSelect;
@@ -92,6 +94,8 @@ const currentPageUserSelect = {
       featuredUntil: true,
       lastPaymentDate: true,
       rejectionReason: true,
+      latitude: true,
+      longitude: true,
     },
   },
 } satisfies Prisma.UserSelect;

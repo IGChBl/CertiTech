@@ -158,19 +158,23 @@ export async function POST(request: NextRequest) {
       201,
     );
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2024") {
-      return jsonError(getPrismaFriendlyErrorMessage(error, "No se pudo completar el registro técnico en este momento."), 503);
-    }
+      console.log("============== 🚨 ¡ALERTA DE ERROR EN REGISTRO! 🚨 ==============");
+      console.error("ERROR REAL DETECTADO:", error);
+      console.log("===============================================================");
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
-      return jsonError(
-        "La base de datos está desactualizada para este registro. Ejecuta migraciones y vuelve a intentar.",
-        500,
-      );
-    }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2024") {
+          return jsonError(getPrismaFriendlyErrorMessage(error, "No se pudo completar el registro técnico en este momento."), 503);
+      }
 
-    console.error("register-technician error", error);
-    return jsonError(getPrismaFriendlyErrorMessage(error, "No se pudo completar el registro técnico en este momento."), 500);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
+          return jsonError(
+              "La base de datos está desactualizada para este registro. Ejecuta migraciones y vuelve a intentar.",
+              500,
+          );
+      }
+
+      return jsonError(getPrismaFriendlyErrorMessage(error, "No se pudo completar el registro técnico en este momento."), 500);
   }
 }
+
 

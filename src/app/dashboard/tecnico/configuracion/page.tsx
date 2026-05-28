@@ -8,6 +8,7 @@ import { TechnicianProfessionalProfileForm } from "@/components/forms/technician
 import { getVerificationColor, getVerificationLabel } from "@/lib/verification-ui";
 import { AvatarUploader } from "@/components/forms/avatar-uploader";
 import { technicianDashboardLinks } from "@/lib/dashboard-links";
+import { TechnicianLocationForm } from "@/components/forms/technician-location-form";
 import {
   getSubscriptionDaysRemaining,
   hasActivePaidSubscription,
@@ -112,6 +113,11 @@ export default async function TecnicoConfiguracionPage() {
           Ver gestión de suscripción
         </Link>
       </Card>
+
+      <TechnicianLocationForm
+        initialLat={user.technicianProfile?.latitude}
+        initialLng={user.technicianProfile?.longitude}
+      />
 
       <TechnicianProfessionalProfileForm
         initialIdentityDocumentUrl={user.technicianProfile?.identityDocumentUrl}
