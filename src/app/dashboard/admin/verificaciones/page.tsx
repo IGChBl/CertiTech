@@ -16,6 +16,28 @@ function asStringArray(value: unknown) {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
+function technicianDocumentUrl(kind: string, technicianProfileId: string, index?: number) {
+  const params = new URLSearchParams({ kind, technicianProfileId });
+  if (index !== undefined) params.set("index", String(index));
+  return `/api/technician/profile-assets/document?${params.toString()}`;
+}
+
+function AdminDocumentLink({ href, label }: { href: string; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+      <span className="font-medium text-slate-700">{label}</span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-100"
+      >
+        Ver documento
+      </a>
+    </div>
+  );
+}
+
 function formatDate(value: Date | null) {
   if (!value) return "No definido";
   return new Date(value).toLocaleDateString("es-NI");
@@ -231,48 +253,37 @@ export default async function AdminVerificacionesPage() {
                     <p>{hasCertifications ? "✓ Certificaciones cargadas" : "✗ Certificaciones pendientes"}</p>
                   </div>
 
-                  {tech.identityDocumentUrl ? (
-                    <a href={tech.identityDocumentUrl} target="_blank" rel="noreferrer" className="text-xs text-slate-700 underline">
-                      Ver documento de identidad
-                    </a>
-                  ) : null}
+                  <div className="space-y-2">
+                    {tech.identityDocumentUrl ? (
+                      <AdminDocumentLink
+                        href={technicianDocumentUrl("identityDocument", tech.id)}
+                        label="Documento de identidad cargado"
+                      />
+                    ) : null}
 
-                  {hasPoliceRecord ? (
-                    <a
-                      href={`/api/technician/profile-assets/police-record?technicianProfileId=${tech.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-slate-700 underline"
-                    >
-                      Ver récord policial
-                    </a>
-                  ) : null}
+                    {hasPoliceRecord ? (
+                      <AdminDocumentLink
+                        href={technicianDocumentUrl("policeRecord", tech.id)}
+                        label="Récord policial cargado"
+                      />
+                    ) : null}
 
-                  {workEvidence.length ? (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-slate-700">Evidencias de trabajo</p>
-                      <div className="space-y-1">
-                        {workEvidence.map((url) => (
-                          <a key={url} href={url} target="_blank" rel="noreferrer" className="block text-xs text-slate-700 underline">
-                            {url}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+                    {workEvidence.map((url, index) => (
+                      <AdminDocumentLink
+                        key={url}
+                        href={technicianDocumentUrl("workEvidence", tech.id, index)}
+                        label={`Evidencia ${index + 1} cargada`}
+                      />
+                    ))}
 
-                  {certifications.length ? (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-slate-700">Certificaciones</p>
-                      <div className="space-y-1">
-                        {certifications.map((url) => (
-                          <a key={url} href={url} target="_blank" rel="noreferrer" className="block text-xs text-slate-700 underline">
-                            {url}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+                    {certifications.map((url, index) => (
+                      <AdminDocumentLink
+                        key={url}
+                        href={technicianDocumentUrl("certification", tech.id, index)}
+                        label={`Certificación ${index + 1} cargada`}
+                      />
+                    ))}
+                  </div>
 
                   {tech.rejectionReason ? (
                     <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">

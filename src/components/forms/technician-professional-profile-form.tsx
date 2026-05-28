@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, type ReactNode, useRef, useState } from "react";
-import { Loader2, Trash2, Upload } from "lucide-react";
+import { ExternalLink, Loader2, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,12 @@ import { Card } from "@/components/ui/card";
 type AssetKind = "identityDocument" | "workEvidence" | "certification" | "policeRecord";
 
 type FieldErrors = Record<string, string[]>;
+
+function technicianDocumentUrl(kind: AssetKind, index?: number) {
+  const params = new URLSearchParams({ kind });
+  if (index !== undefined) params.set("index", String(index));
+  return `/api/technician/profile-assets/document?${params.toString()}`;
+}
 
 type ProfessionalProfileFormProps = {
   initialIdentityDocumentUrl?: string | null;
@@ -68,6 +74,39 @@ function UploadSection({
   );
 }
 
+function DocumentRow({
+  label = "Documento cargado",
+  href,
+  onRemove,
+  removeLabel = "Eliminar",
+}: {
+  label?: string;
+  href: string;
+  onRemove: () => void;
+  removeLabel?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+      <span className="font-medium text-slate-700">{label}</span>
+      <div className="flex shrink-0 items-center gap-2">
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Ver documento
+        </a>
+        <button type="button" className="inline-flex items-center gap-1 text-rose-700" onClick={onRemove}>
+          <Trash2 className="h-3.5 w-3.5" />
+          {removeLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TechnicianProfessionalProfileForm({
   initialIdentityDocumentUrl,
   initialPoliceRecordUrl,
@@ -121,9 +160,9 @@ export function TechnicianProfessionalProfileForm({
     }
 
     if (kind === "identityDocument") {
-      setIdentityDocumentUrl(data.url ?? null);
+      setIdentityDocumentUrl(Array.isArray(data.values) ? (data.values[0] ?? null) : null);
     } else if (kind === "policeRecord") {
-      setPoliceRecordUrl(data.url ?? null);
+      setPoliceRecordUrl(Array.isArray(data.values) ? (data.values[0] ?? null) : null);
     } else if (kind === "workEvidence") {
       setWorkEvidences(Array.isArray(data.values) ? data.values : []);
     } else if (kind === "certification") {
@@ -252,19 +291,7 @@ export function TechnicianProfessionalProfileForm({
           loading={loadingKind === "identityDocument"}
         >
           {identityDocumentUrl ? (
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <a href={identityDocumentUrl} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
-                Ver documento cargado
-              </a>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-rose-700"
-                onClick={() => removeAsset("identityDocument")}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Eliminar
-              </button>
-            </div>
+            <DocumentRow href={technicianDocumentUrl("identityDocument")} onRemove={() => removeAsset("identityDocument")} />
           ) : null}
         </UploadSection>
 
@@ -277,19 +304,7 @@ export function TechnicianProfessionalProfileForm({
           loading={loadingKind === "policeRecord"}
         >
           {policeRecordUrl ? (
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <a href={policeRecordUrl} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
-                Ver récord cargado
-              </a>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-rose-700"
-                onClick={() => removeAsset("policeRecord")}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Eliminar
-              </button>
-            </div>
+            <DocumentRow href={technicianDocumentUrl("policeRecord")} onRemove={() => removeAsset("policeRecord")} />
           ) : null}
         </UploadSection>
 
@@ -302,21 +317,14 @@ export function TechnicianProfessionalProfileForm({
           loading={loadingKind === "workEvidence"}
         >
           {workEvidences.length ? (
-            <div className="space-y-1 text-xs">
-              {workEvidences.map((url) => (
-                <div key={url} className="flex items-center justify-between gap-2">
-                  <a href={url} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
-                    {url}
-                  </a>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-rose-700"
-                    onClick={() => removeAsset("workEvidence", url)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Quitar
-                  </button>
-                </div>
+            <div className="space-y-1">
+              {workEvidences.map((url, index) => (
+                <DocumentRow
+                  key={url}
+                  label={`Evidencia ${index + 1} cargada`}
+                  href={technicianDocumentUrl("workEvidence", index)}
+                  onRemove={() => removeAsset("workEvidence", url)}
+                />
               ))}
             </div>
           ) : null}
@@ -331,21 +339,14 @@ export function TechnicianProfessionalProfileForm({
           loading={loadingKind === "certification"}
         >
           {certifications.length ? (
-            <div className="space-y-1 text-xs">
-              {certifications.map((url) => (
-                <div key={url} className="flex items-center justify-between gap-2">
-                  <a href={url} target="_blank" rel="noreferrer" className="truncate text-slate-700 underline">
-                    {url}
-                  </a>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-rose-700"
-                    onClick={() => removeAsset("certification", url)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Quitar
-                  </button>
-                </div>
+            <div className="space-y-1">
+              {certifications.map((url, index) => (
+                <DocumentRow
+                  key={url}
+                  label={`Certificación ${index + 1} cargada`}
+                  href={technicianDocumentUrl("certification", index)}
+                  onRemove={() => removeAsset("certification", url)}
+                />
               ))}
             </div>
           ) : null}

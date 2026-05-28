@@ -40,12 +40,10 @@ export async function POST(request: NextRequest) {
       mimeType: file.type,
       size: file.size,
     });
-    const responseUrl = kind === "policeRecord" ? "/api/technician/profile-assets/police-record" : result.publicUrl;
-
     return NextResponse.json({
       message: "Archivo cargado correctamente.",
       kind,
-      url: responseUrl,
+      url: result.values[0] ?? null,
       values: result.values,
       bytes: result.bytes,
       mimeType: result.mimeType,

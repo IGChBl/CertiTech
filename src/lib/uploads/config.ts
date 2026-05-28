@@ -7,6 +7,7 @@ export const AVATAR_TARGET_SIZE = 400;
 export const AVATAR_SUBDIRECTORY = "avatars";
 export const AVATAR_ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 export const TECHNICIAN_ASSETS_SUBDIRECTORY = "technicians";
+export const PRIVATE_UPLOAD_LOCAL_PATH = "storage/private/uploads";
 
 function normalizeSlashes(value: string) {
   return value.replace(/\\/g, "/").replace(/^\.?\//, "");
@@ -28,6 +29,14 @@ export function getLocalUploadRelativePath() {
 
 export function getLocalUploadAbsolutePath() {
   return path.resolve(/*turbopackIgnore: true*/ process.cwd(), getLocalUploadRelativePath());
+}
+
+export function getPrivateUploadRelativePath() {
+  return normalizeSlashes((process.env.PRIVATE_UPLOAD_LOCAL_PATH ?? PRIVATE_UPLOAD_LOCAL_PATH).trim() || PRIVATE_UPLOAD_LOCAL_PATH);
+}
+
+export function getPrivateUploadAbsolutePath() {
+  return path.resolve(/*turbopackIgnore: true*/ process.cwd(), getPrivateUploadRelativePath());
 }
 
 export function getLocalUploadPublicBasePath() {
@@ -54,6 +63,10 @@ export function getAvatarPublicPathPrefix() {
 }
 
 export function getTechnicianAssetsAbsoluteBasePath() {
+  return path.resolve(getPrivateUploadAbsolutePath(), TECHNICIAN_ASSETS_SUBDIRECTORY);
+}
+
+export function getTechnicianAssetsLegacyPublicAbsoluteBasePath() {
   return path.resolve(getLocalUploadAbsolutePath(), TECHNICIAN_ASSETS_SUBDIRECTORY);
 }
 

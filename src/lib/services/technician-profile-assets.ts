@@ -4,8 +4,8 @@ import { promises as fs } from "node:fs";
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import {
-  getLocalUploadAbsolutePath,
   getTechnicianAssetsAbsoluteBasePath,
+  getTechnicianAssetsLegacyPublicAbsoluteBasePath,
   getTechnicianAssetsPublicBasePath,
   getUploadProvider,
 } from "@/lib/uploads/config";
@@ -48,7 +48,7 @@ export class TechnicianAssetError extends Error {
   }
 }
 
-function getArrayFromJson(value: unknown) {
+export function getArrayFromJson(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
@@ -61,8 +61,15 @@ function extensionForMimeType(mimeType: string) {
   return "bin";
 }
 
-function publicPrefixForKind(kind: TechnicianAssetKind) {
-  return `${getTechnicianAssetsPublicBasePath()}/${assetFolderByKind[kind]}`.replace(/\/{2,}/g, "/");
+const PRIVATE_TECHNICIAN_ASSET_PREFIX = "private://technicians/";
+
+function privateReferenceForKind(kind: TechnicianAssetKind, fileName: string) {
+  return `${PRIVATE_TECHNICIAN_ASSET_PREFIX}${assetFolderByKind[kind]}/${fileName}`;
+}
+
+function isPathInside(basePath: string, candidatePath: string) {
+  const relativePath = path.relative(basePath, candidatePath);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
 }
 
 function buildAssetFileName(userId: string, extension: string) {
@@ -87,20 +94,64 @@ async function optimizeImage(fileBuffer: Buffer) {
   };
 }
 
-async function deleteLocalFileIfOwned(fileUrl: string | null | undefined) {
-  if (!fileUrl) return;
+export function resolveTechnicianAssetAbsolutePathCandidates(fileReference: string, kind: TechnicianAssetKind) {
+  const expectedFolder = `${assetFolderByKind[kind]}/`;
 
-  const assetsPrefix = `${getTechnicianAssetsPublicBasePath()}/`;
-  if (!fileUrl.startsWith(assetsPrefix)) return;
+  if (fileReference.startsWith(PRIVATE_TECHNICIAN_ASSET_PREFIX)) {
+    const relativePath = fileReference.slice(PRIVATE_TECHNICIAN_ASSET_PREFIX.length);
+    if (!relativePath.startsWith(expectedFolder) || relativePath.includes("..")) return [];
 
-  const relativePath = fileUrl.slice(assetsPrefix.length);
-  if (!relativePath || relativePath.includes("..")) return;
+    const privateBasePath = getTechnicianAssetsAbsoluteBasePath();
+    const absolutePath = path.resolve(privateBasePath, relativePath);
+    if (!isPathInside(privateBasePath, absolutePath)) return [];
 
-  const uploadRoot = getLocalUploadAbsolutePath();
-  const absoluteCandidate = path.resolve(getTechnicianAssetsAbsoluteBasePath(), relativePath);
-  if (!absoluteCandidate.startsWith(uploadRoot)) return;
+    return [absolutePath];
+  }
 
-  await fs.unlink(absoluteCandidate).catch(() => undefined);
+  const legacyPublicPrefix = `${getTechnicianAssetsPublicBasePath()}/`;
+  if (!fileReference.startsWith(legacyPublicPrefix)) return [];
+
+  const relativePath = fileReference.slice(legacyPublicPrefix.length);
+  if (!relativePath.startsWith(expectedFolder) || relativePath.includes("..")) return [];
+
+  const candidates: string[] = [];
+  const privateBasePath = getTechnicianAssetsAbsoluteBasePath();
+  const privateCandidate = path.resolve(privateBasePath, relativePath);
+  if (isPathInside(privateBasePath, privateCandidate)) {
+    candidates.push(privateCandidate);
+  }
+
+  const legacyPublicBasePath = getTechnicianAssetsLegacyPublicAbsoluteBasePath();
+  const legacyPublicCandidate = path.resolve(legacyPublicBasePath, relativePath);
+  if (isPathInside(legacyPublicBasePath, legacyPublicCandidate)) {
+    candidates.push(legacyPublicCandidate);
+  }
+
+  return candidates;
+}
+
+export function resolveTechnicianAssetAbsolutePath(fileReference: string, kind: TechnicianAssetKind) {
+  return resolveTechnicianAssetAbsolutePathCandidates(fileReference, kind)[0] ?? null;
+}
+
+async function deleteLocalFileIfOwned(fileReference: string | null | undefined, kind?: TechnicianAssetKind) {
+  if (!fileReference) return;
+
+  const kindsToCheck = kind ? [kind] : (Object.keys(assetFolderByKind) as TechnicianAssetKind[]);
+
+  for (const currentKind of kindsToCheck) {
+    const absolutePath = resolveTechnicianAssetAbsolutePath(fileReference, currentKind);
+    if (absolutePath) {
+      await fs.unlink(absolutePath).catch(() => undefined);
+      return;
+    }
+  }
+}
+
+function assertAllowedFileContent(mimeType: string, fileBuffer: Buffer) {
+  if (mimeType === "application/pdf" && !fileBuffer.subarray(0, 5).equals(Buffer.from("%PDF-"))) {
+    throw new TechnicianAssetError("El PDF no es válido o está dañado.", 400);
+  }
 }
 
 async function saveLocalAsset(input: UploadInput) {
@@ -111,6 +162,8 @@ async function saveLocalAsset(input: UploadInput) {
   if (!allowedMimeByKind[input.kind].has(input.mimeType)) {
     throw new TechnicianAssetError("Formato de archivo no permitido para este campo.", 400);
   }
+
+  assertAllowedFileContent(input.mimeType, input.fileBuffer);
 
   let payloadBuffer = input.fileBuffer;
   let payloadMimeType = input.mimeType;
@@ -130,7 +183,7 @@ async function saveLocalAsset(input: UploadInput) {
 
   const fileName = buildAssetFileName(input.userId, extension);
   const absolutePath = path.resolve(baseFolder, fileName);
-  const publicUrl = `${publicPrefixForKind(input.kind)}/${fileName}`.replace(/\/{2,}/g, "/");
+  const publicUrl = privateReferenceForKind(input.kind, fileName);
 
   await fs.writeFile(absolutePath, payloadBuffer);
 
@@ -173,7 +226,7 @@ export async function uploadTechnicianAsset(input: UploadInput) {
       where: { userId: input.userId },
       data: { identityDocumentUrl: uploaded.publicUrl },
     });
-    await deleteLocalFileIfOwned(profile.identityDocumentUrl);
+    await deleteLocalFileIfOwned(profile.identityDocumentUrl, "identityDocument");
     return { ...uploaded, values: [uploaded.publicUrl] };
   }
 
@@ -182,7 +235,7 @@ export async function uploadTechnicianAsset(input: UploadInput) {
       where: { userId: input.userId },
       data: { policeRecordUrl: uploaded.publicUrl },
     });
-    await deleteLocalFileIfOwned(profile.policeRecordUrl);
+    await deleteLocalFileIfOwned(profile.policeRecordUrl, "policeRecord");
     return { ...uploaded, values: [uploaded.publicUrl] };
   }
 
@@ -225,7 +278,7 @@ export async function removeTechnicianAsset(userId: string, kind: TechnicianAsse
       where: { userId },
       data: { identityDocumentUrl: null },
     });
-    await deleteLocalFileIfOwned(profile.identityDocumentUrl);
+    await deleteLocalFileIfOwned(profile.identityDocumentUrl, "identityDocument");
     return { values: [] as string[] };
   }
 
@@ -234,7 +287,7 @@ export async function removeTechnicianAsset(userId: string, kind: TechnicianAsse
       where: { userId },
       data: { policeRecordUrl: null },
     });
-    await deleteLocalFileIfOwned(profile.policeRecordUrl);
+    await deleteLocalFileIfOwned(profile.policeRecordUrl, "policeRecord");
     return { values: [] as string[] };
   }
 
@@ -245,21 +298,29 @@ export async function removeTechnicianAsset(userId: string, kind: TechnicianAsse
   if (kind === "workEvidence") {
     const current = getArrayFromJson(profile.workEvidenceJson);
     const next = current.filter((item) => item !== fileUrl);
+    if (next.length === current.length) {
+      throw new TechnicianAssetError("Archivo no encontrado en tu perfil.", 404);
+    }
+
     await prisma.technicianProfile.update({
       where: { userId },
       data: { workEvidenceJson: next },
     });
-    await deleteLocalFileIfOwned(fileUrl);
+    await deleteLocalFileIfOwned(fileUrl, "workEvidence");
     return { values: next };
   }
 
   const current = getArrayFromJson(profile.certificationsJson);
   const next = current.filter((item) => item !== fileUrl);
+  if (next.length === current.length) {
+    throw new TechnicianAssetError("Archivo no encontrado en tu perfil.", 404);
+  }
+
   await prisma.technicianProfile.update({
     where: { userId },
     data: { certificationsJson: next },
   });
-  await deleteLocalFileIfOwned(fileUrl);
+  await deleteLocalFileIfOwned(fileUrl, "certification");
   return { values: next };
 }
 
