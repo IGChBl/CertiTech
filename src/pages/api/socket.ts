@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { Server as NetServer } from "http";
 import { Server as SocketServer } from "socket.io";
 import type { Socket as NetSocket } from "net";
+import { AUTH_COOKIE, AUTH_REFRESH_COOKIE } from "@/lib/constants";
+import { verifyAccessToken, verifyRefreshToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
 
 type NextApiResponseServerIO = NextApiResponse & {
@@ -12,11 +14,70 @@ type NextApiResponseServerIO = NextApiResponse & {
   };
 };
 
+type AuthenticatedSocketData = {
+  userId: string;
+};
+
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+function parseCookies(cookieHeader: string | undefined) {
+  const cookies = new Map<string, string>();
+
+  for (const item of cookieHeader?.split(";") ?? []) {
+    const separatorIndex = item.indexOf("=");
+    if (separatorIndex === -1) continue;
+
+    const name = item.slice(0, separatorIndex).trim();
+    const value = item.slice(separatorIndex + 1).trim();
+    if (name) cookies.set(name, decodeURIComponent(value));
+  }
+
+  return cookies;
+}
+
+async function resolveSocketUserId(cookieHeader: string | undefined) {
+  const cookies = parseCookies(cookieHeader);
+  const accessToken = cookies.get(AUTH_COOKIE);
+  const refreshToken = cookies.get(AUTH_REFRESH_COOKIE);
+
+  try {
+    if (accessToken) {
+      const payload = await verifyAccessToken(accessToken);
+      return payload.userId;
+    }
+  } catch {
+    // Fall back to refresh token below.
+  }
+
+  try {
+    if (refreshToken) {
+      const payload = await verifyRefreshToken(refreshToken);
+      return payload.userId;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function isChatParticipant(chatId: string, userId: string) {
+  const participant = await prisma.chatParticipant.findUnique({
+    where: {
+      chatId_userId: {
+        chatId,
+        userId,
+      },
+    },
+    select: { chatId: true },
+  });
+
+  return Boolean(participant);
+}
 
 export default function handler(_req: NextApiRequest, res: NextApiResponseServerIO) {
   if (!res.socket.server.io) {
@@ -28,32 +89,51 @@ export default function handler(_req: NextApiRequest, res: NextApiResponseServer
       },
     });
 
-    io.on("connection", (socket) => {
-      socket.on("join-chat", (chatId: string) => {
-        if (chatId) {
-          socket.join(chatId);
+    io.use(async (socket, next) => {
+      try {
+        const userId = await resolveSocketUserId(socket.handshake.headers.cookie);
+        if (!userId) {
+          return next(new Error("No autenticado"));
         }
+
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, status: true },
+        });
+
+        if (!user || user.status !== "ACTIVE") {
+          return next(new Error("No autenticado"));
+        }
+
+        (socket.data as AuthenticatedSocketData).userId = user.id;
+        return next();
+      } catch {
+        return next(new Error("No autenticado"));
+      }
+    });
+
+    io.on("connection", (socket) => {
+      socket.on("join-chat", async (chatId: string) => {
+        const userId = (socket.data as AuthenticatedSocketData).userId;
+
+        if (!chatId || !(await isChatParticipant(chatId, userId))) {
+          return;
+        }
+
+        socket.join(chatId);
       });
 
       socket.on(
         "send-message",
-        async (payload: { chatId: string; senderId: string; content: string; imageUrl?: string }) => {
-          const { chatId, senderId, content, imageUrl } = payload;
+        async (payload: { chatId: string; content: string; imageUrl?: string }) => {
+          const { chatId, content, imageUrl } = payload;
+          const senderId = (socket.data as AuthenticatedSocketData).userId;
 
-          if (!chatId || !senderId || !content?.trim()) {
+          if (!chatId || !content?.trim()) {
             return;
           }
 
-          const participant = await prisma.chatParticipant.findUnique({
-            where: {
-              chatId_userId: {
-                chatId,
-                userId: senderId,
-              },
-            },
-          });
-
-          if (!participant) {
+          if (!(await isChatParticipant(chatId, senderId))) {
             return;
           }
 
@@ -117,15 +197,19 @@ export default function handler(_req: NextApiRequest, res: NextApiResponseServer
         },
       );
 
-      socket.on("message-read", async (payload: { chatId: string; userId: string }) => {
-        if (!payload?.chatId || !payload?.userId) {
+      socket.on("message-read", async (payload: { chatId: string }) => {
+        const userId = (socket.data as AuthenticatedSocketData).userId;
+
+        if (!payload?.chatId || !(await isChatParticipant(payload.chatId, userId))) {
           return;
         }
 
-        await prisma.chatParticipant.updateMany({
+        await prisma.chatParticipant.update({
           where: {
-            chatId: payload.chatId,
-            userId: payload.userId,
+            chatId_userId: {
+              chatId: payload.chatId,
+              userId,
+            },
           },
           data: {
             lastReadAt: new Date(),

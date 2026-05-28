@@ -147,6 +147,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (serviceRequestId) {
+      const serviceRequest = await prisma.serviceRequest.findUnique({
+        where: { id: serviceRequestId },
+        select: {
+          clientId: true,
+          technicianId: true,
+        },
+      });
+
+      if (!serviceRequest || !serviceRequest.technicianId) {
+        return NextResponse.json({ error: "Solicitud no disponible para iniciar chat" }, { status: 404 });
+      }
+
+      const participantIds = new Set([auth.user.id, recipientUserId]);
+      const serviceRequestMatchesParticipants =
+        participantIds.has(serviceRequest.clientId) && participantIds.has(serviceRequest.technicianId);
+
+      if (!serviceRequestMatchesParticipants) {
+        return NextResponse.json({ error: "La solicitud no corresponde a estos participantes" }, { status: 403 });
+      }
+    }
+
     let chat = null;
 
     if (serviceRequestId) {

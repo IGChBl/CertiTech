@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guards";
 import { updateServiceStatusSchema } from "@/lib/validations/service-request";
 import { prisma } from "@/lib/prisma";
-import { hasTechnicianPoliceRecord, POLICE_RECORD_REQUIRED_MESSAGE } from "@/lib/subscriptions/service";
+import {
+  getTechnicianSubscriptionRestrictionMessage,
+  hasActivePaidSubscription,
+  hasTechnicianPoliceRecord,
+  POLICE_RECORD_REQUIRED_MESSAGE,
+} from "@/lib/subscriptions/service";
 
 export async function PATCH(
   request: NextRequest,
@@ -76,6 +81,63 @@ export async function PATCH(
   }
 
   const status = parsed.data.status;
+
+  if (role === "TECHNICIAN" && !serviceRequest.technicianId && status !== "ACCEPTED") {
+    return NextResponse.json({ error: "Debes aceptar la solicitud antes de cambiar su estado" }, { status: 403 });
+  }
+
+  if (role === "TECHNICIAN" && status === "ACCEPTED" && !serviceRequest.technicianId) {
+    const profile = auth.user.technicianProfile;
+
+    if (serviceRequest.status !== "PENDING") {
+      return NextResponse.json({ error: "Solo puedes aceptar solicitudes pendientes" }, { status: 400 });
+    }
+
+    if (!profile || profile.verification !== "VERIFIED") {
+      return NextResponse.json({ error: "Solo técnicos verificados pueden aceptar solicitudes" }, { status: 403 });
+    }
+
+    if (!hasTechnicianPoliceRecord(profile.policeRecordUrl)) {
+      return NextResponse.json({ error: POLICE_RECORD_REQUIRED_MESSAGE }, { status: 403 });
+    }
+
+    if (
+      !hasActivePaidSubscription({
+        subscriptionPlan: profile.subscriptionPlan,
+        subscriptionStatus: profile.subscriptionStatus,
+        subscriptionEndDate: profile.subscriptionEndDate,
+        policeRecordUrl: profile.policeRecordUrl,
+      })
+    ) {
+      return NextResponse.json(
+        {
+          error: getTechnicianSubscriptionRestrictionMessage({
+            subscriptionPlan: profile.subscriptionPlan,
+            subscriptionStatus: profile.subscriptionStatus,
+            subscriptionEndDate: profile.subscriptionEndDate,
+            policeRecordUrl: profile.policeRecordUrl,
+          }),
+        },
+        { status: 403 },
+      );
+    }
+
+    const matchingService = await prisma.technicianService.findFirst({
+      where: {
+        technicianId: profile.id,
+        categoryId: serviceRequest.categoryId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!matchingService) {
+      return NextResponse.json(
+        { error: "No puedes aceptar solicitudes de categorías que no ofreces" },
+        { status: 403 },
+      );
+    }
+  }
 
   const updated = await prisma.serviceRequest.update({
     where: { id },

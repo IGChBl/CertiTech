@@ -46,9 +46,9 @@ export function ChatPanel({
       method: "POST",
     }).catch(() => null);
 
-    socketRef?.emit("message-read", { chatId, userId: currentUserId });
+    socketRef?.emit("message-read", { chatId });
     refreshUnreadMessagesCount();
-  }, [currentUserId]);
+  }, []);
 
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
@@ -139,7 +139,6 @@ export function ChatPanel({
     if (socketRef) {
       socketRef.emit("send-message", {
         chatId: activeChatId,
-        senderId: currentUserId,
         content,
       });
       return;
@@ -186,7 +185,7 @@ export function ChatPanel({
 
       <Card className="flex min-h-[420px] flex-col p-0">
         <div className="border-b border-slate-200 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-900">
+          <div className="text-sm font-semibold text-slate-900">
             {activeChat ? (
               <span className="flex items-center gap-2">
                 <UserAvatar name={activeOtherParticipant?.name} src={activeOtherParticipant?.avatarUrl} size={28} />
@@ -195,7 +194,7 @@ export function ChatPanel({
             ) : (
               "Selecciona una conversación"
             )}
-          </p>
+          </div>
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">

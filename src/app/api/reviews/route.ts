@@ -81,6 +81,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Solo puedes valorar servicios completados" }, { status: 400 });
   }
 
+  const assignedTechnicianProfileId = serviceRequest.technician?.technicianProfile?.id;
+
+  if (!serviceRequest.technicianId || !assignedTechnicianProfileId) {
+    return NextResponse.json({ error: "La solicitud no tiene un técnico asignado para valorar" }, { status: 400 });
+  }
+
+  if (assignedTechnicianProfileId !== technicianProfileId) {
+    return NextResponse.json({ error: "Solo puedes valorar al técnico asignado a este servicio" }, { status: 403 });
+  }
+
   const existingReview = await prisma.review.findUnique({
     where: { serviceRequestId },
   });
