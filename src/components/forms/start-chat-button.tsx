@@ -4,7 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export function StartChatButton({ recipientUserId }: { recipientUserId: string }) {
+export function StartChatButton({
+  recipientUserId,
+  label = "Contactar",
+  variant = "primary",
+  className,
+  classNameWrapper,
+}: {
+  recipientUserId: string;
+  label?: string;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  className?: string;
+  classNameWrapper?: string;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +42,11 @@ export function StartChatButton({ recipientUserId }: { recipientUserId: string }
   }
 
   return (
-    <div className="space-y-2">
-      <Button type="button" onClick={startChat} disabled={loading}>
-        {loading ? "Abriendo chat..." : "Contactar"}
+    <div className={classNameWrapper}>
+      <Button type="button" onClick={startChat} disabled={loading} variant={variant} className={className}>
+        {loading ? "Abriendo chat..." : label}
       </Button>
-      {error ? <p className="max-w-xs text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="mt-1 max-w-xs text-xs text-rose-700">{error}</p> : null}
     </div>
   );
 }

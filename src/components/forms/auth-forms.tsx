@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Eye, EyeOff } from "lucide-react";
 
 type CategoryOption = {
   id: string;
@@ -65,87 +66,212 @@ function FieldErrorBubble({ message }: { message?: string | null }) {
 }
 
 export function LoginForm() {
-  const router = useRouter();
-  const search = useSearchParams();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(
-    search?.get("verified") === "1" ? "Correo verificado. Ya puedes iniciar sesión." : null,
-  );
+    const router = useRouter();
+    const search = useSearchParams();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(
+        search?.get("verified") === "1" ? "Correo verificado. Ya puedes iniciar sesión." : null,
+    );
+    const [showPassword, setShowPassword] = useState(false);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+    // 💡 ESTADOS NUEVOS PARA EL PERFIL DUAL
+    const [requiresModeSelection, setRequiresModeSelection] = useState(false);
+    const [tempToken, setTempToken] = useState<string | null>(null);
 
-    try {
-      const formData = new FormData(event.currentTarget);
-      const payload = {
-        email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? ""),
-      };
+    async function onSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+        try {
+            const formData = new FormData(event.currentTarget);
+            const payload = {
+                email: String(formData.get("email") ?? ""),
+                password: String(formData.get("password") ?? ""),
+            };
 
-      const data = await readResponseData(response);
+            const response = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
 
-      if (!response.ok) {
-        setError(data.error ?? "No fue posible iniciar sesión");
-        return;
-      }
+            const data = await readResponseData(response);
 
-      setSuccess("Sesión iniciada correctamente.");
+            if (!response.ok) {
+                setError(data.error ?? "No fue posible iniciar sesión");
+                return;
+            }
 
-      const role = data.user?.role ?? "CLIENT";
-      const destination =
-        role === "CLIENT"
-          ? "/dashboard/cliente"
-          : role === "TECHNICIAN"
-            ? "/dashboard/tecnico"
-            : "/dashboard/admin";
+            // 💡 INTERCEPCIÓN DUAL: Si el backend pide selección de modo
+            if ((data as any).requiresModeSelection) {
+                setTempToken((data as any).token);
+                setRequiresModeSelection(true);
+                setLoading(false);
+                return;
+            }
 
-      router.push(destination);
-      router.refresh();
-    } catch {
-      setError("No se pudo iniciar sesión en este momento. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
+            setSuccess("Sesión iniciada correctamente.");
+
+            const role = data.user?.role ?? "CLIENT";
+            const destination =
+                role === "CLIENT"
+                    ? "/dashboard/cliente"
+                    : role === "TECHNICIAN"
+                        ? "/dashboard/tecnico"
+                        : "/dashboard/admin";
+
+            router.push(destination);
+            router.refresh();
+        } catch {
+            setError("No se pudo iniciar sesión en este momento. Intenta nuevamente.");
+        } finally {
+            setLoading(false);
+        }
     }
-  }
 
-  return (
-    <Card className="mx-auto w-full max-w-lg space-y-4">
-      <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
-      <form className="space-y-4" onSubmit={onSubmit}>
-        <div className="space-y-2">
-          <label htmlFor="login-email" className={fieldLabelClassName}>
-            Correo electrónico
-          </label>
-          <Input id="login-email" type="email" name="email" required placeholder="correo@ejemplo.com" />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="login-password" className={fieldLabelClassName}>
-            Contraseña
-          </label>
-          <Input id="login-password" type="password" name="password" required placeholder="********" />
-        </div>
+    // 💡 ACCIÓN DE SELECCIÓN DE MODO
+    async function handleSelectMode(activeRole: "CLIENT" | "TECHNICIAN") {
+        if (!tempToken) return;
+        setLoading(true);
+        setError(null);
 
-        {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
-        {success ? (
-          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
-        ) : null}
+        try {
+            const response = await fetch("/api/auth/select-mode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    token: tempToken,
+                    activeRole,
+                }),
+            });
 
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Ingresando..." : "Entrar"}
-        </Button>
-      </form>
-    </Card>
-  );
+            const data = await readResponseData(response);
+
+            if (!response.ok) {
+                setError(data.error ?? "No se pudo activar el modo seleccionado");
+                return;
+            }
+
+            setSuccess(`Ingresando en modo ${activeRole === "CLIENT" ? "Cliente" : "Técnico"}...`);
+
+            const destination = activeRole === "CLIENT" ? "/dashboard/cliente" : "/dashboard/tecnico";
+            router.push(destination);
+            router.refresh();
+        } catch {
+            setError("Ocurrió un error al seleccionar el modo. Intenta de nuevo.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // 🎨 RENDERIZADO CONDICIONAL: PANTALLA SELECTORA DE MODO DUAL
+    if (requiresModeSelection) {
+        return (
+            <Card className="mx-auto w-full max-w-lg space-y-6 p-6">
+                <div className="space-y-2 text-center">
+                    <h1 className="text-2xl font-bold text-slate-900">Selecciona tu perfil</h1>
+                    <p className="text-sm text-slate-500">
+                        Detectamos que tu cuenta cuenta con ambos accesos activos. ¿Cómo deseas ingresar hoy?
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {/* Tarjeta para Cliente */}
+                    <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleSelectMode("CLIENT")}
+                        className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm transition hover:border-slate-900 hover:shadow-md disabled:opacity-50"
+                    >
+                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl">
+                            👤
+                        </div>
+                        <h3 className="font-semibold text-slate-800">Modo Cliente</h3>
+                        <p className="mt-1 text-xs text-slate-400">Buscar técnicos y gestionar mis solicitudes</p>
+                    </button>
+
+                    {/* Tarjeta para Técnico */}
+                    <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleSelectMode("TECHNICIAN")}
+                        className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm transition hover:border-slate-900 hover:shadow-md disabled:opacity-50"
+                    >
+                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl">
+                            🔧
+                        </div>
+                        <h3 className="font-semibold text-slate-800">Modo Técnico</h3>
+                        <p className="mt-1 text-xs text-slate-400">Ver mis trabajos, suscripción y cotizaciones</p>
+                    </button>
+                </div>
+
+                {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 text-center">{error}</p> : null}
+                {success ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 text-center">{success}</p> : null}
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        setRequiresModeSelection(false);
+                        setTempToken(null);
+                        setError(null);
+                    }}
+                    className="w-full text-center text-xs font-medium text-slate-500 hover:text-slate-800 transition underline"
+                >
+                    Volver al formulario tradicional
+                </button>
+            </Card>
+        );
+    }
+
+    // 📝 FORMULARIO TRADICIONAL (Se mantiene idéntico a tu estructura original, empaquetado en su Card)
+    return (
+        <Card className="mx-auto w-full max-w-lg space-y-4">
+            <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
+            <form className="space-y-4" onSubmit={onSubmit}>
+                <div className="space-y-2">
+                    <label htmlFor="login-email" className={fieldLabelClassName}>
+                        Correo electrónico
+                    </label>
+                    <Input id="login-email" type="email" name="email" required placeholder="correo@ejemplo.com" />
+                </div>
+                <div className="space-y-2">
+                    <label htmlFor="login-password" className={fieldLabelClassName}>
+                        Contraseña
+                    </label>
+                    <div className="relative">
+                        <Input
+                            id="login-password"
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            required
+                            placeholder="********"
+                            className="pr-10"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition"
+                            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                        >
+                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                    </div>
+                </div>
+
+                {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+                {success ? (
+                    <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
+                ) : null}
+
+                <Button type="submit" disabled={loading} className="w-full">
+                    {loading ? "Ingresando..." : "Entrar"}
+                </Button>
+            </form>
+        </Card>
+    );
 }
 
 export function RegisterTabs({ categories }: { categories: CategoryOption[] }) {

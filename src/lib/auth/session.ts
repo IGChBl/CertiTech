@@ -103,6 +103,7 @@ const currentPageUserSelect = {
 export async function setSessionCookies(payload: {
   userId: string;
   role: "CLIENT" | "TECHNICIAN" | "ADMIN";
+  activeRole?: "CLIENT" | "TECHNICIAN";
   email: string;
 }) {
   const store = await cookies();
@@ -149,26 +150,27 @@ export async function clearSessionCookies() {
 }
 
 export async function getSessionFromCookies() {
-  const store = await cookies();
-  const token = store.get(AUTH_COOKIE)?.value;
+    const store = await cookies();
+    const token = store.get(AUTH_COOKIE)?.value;
 
-  if (!token) {
-    return null;
-  }
+    if (!token) {
+        return null;
+    }
 
-  try {
-    const payload = await verifyAccessToken(token);
+    try {
+        const payload = await verifyAccessToken(token);
 
-    return {
-      userId: payload.userId,
-      role: payload.role,
-      email: payload.email,
-    };
-  } catch {
-    return null;
-  }
+        return {
+            userId: payload.userId,
+            role: payload.role,
+            // 💡 CORRECCIÓN: Si no viene activeRole, el fallback inmediato es el rol base de la BD
+            activeRole: payload.activeRole ?? (payload.role !== "ADMIN" ? (payload.role as "CLIENT" | "TECHNICIAN") : null),
+            email: payload.email,
+        };
+    } catch {
+        return null;
+    }
 }
-
 export type SessionPayload = Awaited<ReturnType<typeof getSessionFromCookies>>;
 
 type SessionPayloadOptions = {
@@ -190,52 +192,73 @@ export async function getCurrentSessionPayload(options: SessionPayloadOptions = 
 }
 
 export async function refreshSessionIfNeeded() {
-  const store = await cookies();
-  const refreshToken = store.get(AUTH_REFRESH_COOKIE)?.value;
+    const store = await cookies();
+    const refreshToken = store.get(AUTH_REFRESH_COOKIE)?.value;
 
-  if (!refreshToken) {
-    return null;
-  }
-
-  try {
-    const payload = await verifyRefreshToken(refreshToken);
-
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: {
-        id: true,
-        email: true,
-        status: true,
-        role: {
-          select: {
-            code: true,
-          },
-        },
-      },
-    });
-
-    if (!user || user.status !== "ACTIVE") {
-      return null;
+    if (!refreshToken) {
+        return null;
     }
 
-    await setSessionCookies({
-      userId: user.id,
-      email: user.email,
-      role: user.role.code,
-    });
+    try {
+        const payload = await verifyRefreshToken(refreshToken);
 
-    return {
-      userId: user.id,
-      email: user.email,
-      role: user.role.code,
-    };
-  } catch (error) {
-    if (isPrismaConnectionTimeoutError(error)) {
-      console.warn("[auth][session] Timeout temporal al refrescar sesión");
+        const user = await prisma.user.findUnique({
+            where: { id: payload.userId },
+            select: {
+                id: true,
+                email: true,
+                status: true,
+                role: {
+                    select: {
+                        code: true,
+                    },
+                },
+                clientProfile: { select: { id: true } },
+                technicianProfile: { select: { id: true } },
+            },
+        });
+
+        if (!user || user.status !== "ACTIVE") {
+            return null;
+        }
+
+        // 💡 LÓGICA DE CONTROL DEL ROL ACTIVO:
+        let activeRole: "CLIENT" | "TECHNICIAN" | undefined = undefined;
+
+        if (user.role.code !== "ADMIN") {
+            const hasClient = !!user.clientProfile;
+            const hasTech = !!user.technicianProfile;
+
+            if (hasClient && hasTech) {
+                // Si tiene ambos perfiles, mantenemos el que ya tenía activo en el payload anterior
+                activeRole = payload.activeRole ?? (user.role.code as "CLIENT" | "TECHNICIAN");
+            } else if (hasTech) {
+                activeRole = "TECHNICIAN";
+            } else if (hasClient) {
+                activeRole = "CLIENT";
+            }
+        }
+
+        await setSessionCookies({
+            userId: user.id,
+            email: user.email,
+            role: user.role.code,
+            activeRole,
+        });
+
+        return {
+            userId: user.id,
+            email: user.email,
+            role: user.role.code,
+            activeRole: activeRole ?? null,
+        };
+    } catch (error) {
+        if (isPrismaConnectionTimeoutError(error)) {
+            console.warn("[auth][session] Timeout temporal al refrescar sesión");
+        }
+
+        return null;
     }
-
-    return null;
-  }
 }
 
 async function resolveCurrentApiUser() {

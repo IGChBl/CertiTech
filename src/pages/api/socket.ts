@@ -132,6 +132,41 @@ export default function handler(_req: NextApiRequest, res: NextApiResponseServer
           },
         });
       });
+
+      socket.on(
+        "update-message",
+        async (payload: { chatId: string; messageId: string; userId: string; newContent: string }) => {
+          const { chatId, messageId, userId, newContent } = payload;
+
+          if (!chatId || !messageId || !userId || !newContent) {
+            return;
+          }
+
+          // Verify the user is a participant of this chat
+          const participant = await prisma.chatParticipant.findUnique({
+            where: {
+              chatId_userId: { chatId, userId },
+            },
+          });
+
+          if (!participant) {
+            return;
+          }
+
+          // Update the message content in DB
+          const updated = await prisma.message.update({
+            where: { id: messageId },
+            data: { content: newContent },
+          });
+
+          // Broadcast updated message to entire chat room
+          io.to(chatId).emit("message:update", {
+            id: updated.id,
+            chatId,
+            content: updated.content,
+          });
+        },
+      );
     });
 
     res.socket.server.io = io;

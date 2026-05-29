@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,7 +111,13 @@ export default async function TecnicoDetallePage({
               Premium {getSubscriptionPlanLabel(technician.subscriptionPlan)}
             </Badge>
             <FavoriteButton technicianProfileId={technician.id} />
-            <StartChatButton recipientUserId={technician.user.id} />
+            <StartChatButton recipientUserId={technician.user.id} label="Contactar" variant="secondary" />
+            <Link
+              href={`/dashboard/cliente/solicitudes?tecnicoId=${technician.user.id}`}
+              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition"
+            >
+              Agendar Servicio
+            </Link>
           </div>
         </div>
 
@@ -125,6 +132,42 @@ export default async function TecnicoDetallePage({
             </Badge>
           ))}
         </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <h2 className="text-xl font-semibold text-slate-900">Servicios Ofrecidos</h2>
+        {technician.services.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {technician.services.map((service) => (
+              <div key={service.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 shadow-sm space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start gap-2">
+                    <h3 className="font-semibold text-slate-900">{service.title}</h3>
+                    {service.basePrice !== null ? (
+                      <span className="text-sm font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg shrink-0">
+                        C$ {service.basePrice.toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-500 italic shrink-0 bg-slate-100 px-2.5 py-1 rounded-lg">
+                        Precio a convenir
+                      </span>
+                    )}
+                  </div>
+                  <Badge variant="neutral" className="mt-1.5 text-[11px] py-0.5 px-2">
+                    {service.category.name}
+                  </Badge>
+                  {service.description ? (
+                    <p className="mt-3 text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{service.description}</p>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-400 italic">Sin descripción adicional.</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Este técnico no ha registrado servicios específicos aún.</p>
+        )}
       </Card>
 
       {technician.latitude && technician.longitude ? (
