@@ -30,7 +30,7 @@ export default async function TecnicosPage({
   const city = toStringValue(params.city);
   const category = toStringValue(params.category);
 
-  const categoriesResult = await prisma.serviceCategory
+  const categoriesPromise = prisma.serviceCategory
     .findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -46,7 +46,7 @@ export default async function TecnicosPage({
       return { categories: [], hasWarning: true };
     });
 
-  const techniciansResult = await prisma.technicianProfile
+  const techniciansPromise = prisma.technicianProfile
     .findMany({
       where: {
         ...buildPublicTechnicianWhere(),
@@ -103,6 +103,11 @@ export default async function TecnicosPage({
       console.error("[public][tecnicos] Error cargando técnicos", error);
       return { technicians: [], hasWarning: true };
     });
+
+  const [categoriesResult, techniciansResult] = await Promise.all([
+    categoriesPromise,
+    techniciansPromise,
+  ]);
 
   const categories = categoriesResult.categories;
   const technicians = techniciansResult.technicians;

@@ -35,7 +35,7 @@ export default async function ClienteSolicitudesPage({
       ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
       : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
 
-  const categoriesResult = await prisma.serviceCategory
+  const categoriesPromise = prisma.serviceCategory
     .findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -47,8 +47,8 @@ export default async function ClienteSolicitudesPage({
       return { categories: [], hasWarning: true };
     });
 
-  const techniciansResult = canCreateRequests
-    ? await prisma.technicianProfile
+  const techniciansPromise = canCreateRequests
+    ? prisma.technicianProfile
         .findMany({
           where: buildPublicTechnicianWhere(),
           orderBy: [
@@ -65,9 +65,9 @@ export default async function ClienteSolicitudesPage({
           console.error("[dashboard][cliente][solicitudes] Error cargando técnicos", error);
           return { technicians: [], hasWarning: true };
         })
-    : { technicians: [], hasWarning: false };
+    : Promise.resolve({ technicians: [], hasWarning: false });
 
-  const requestsResult = await prisma.serviceRequest
+  const requestsPromise = prisma.serviceRequest
     .findMany({
       where: { clientId: user.id },
       include: {
@@ -92,6 +92,12 @@ export default async function ClienteSolicitudesPage({
       console.error("[dashboard][cliente][solicitudes] Error cargando historial", error);
       return { requests: [], hasWarning: true };
     });
+
+  const [categoriesResult, techniciansResult, requestsResult] = await Promise.all([
+    categoriesPromise,
+    techniciansPromise,
+    requestsPromise,
+  ]);
 
   const categories = categoriesResult.categories;
   const technicians = techniciansResult.technicians;

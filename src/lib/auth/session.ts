@@ -9,7 +9,7 @@ import {
   verifyRefreshToken,
 } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
-import { isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
+import { DbBusyError, isPrismaConnectionTimeoutError, withDbRetry } from "@/lib/prisma-errors";
 
 const currentApiUserSelect = {
   id: true,
@@ -202,21 +202,23 @@ export async function refreshSessionIfNeeded() {
     try {
         const payload = await verifyRefreshToken(refreshToken);
 
-        const user = await prisma.user.findUnique({
-            where: { id: payload.userId },
-            select: {
-                id: true,
-                email: true,
-                status: true,
-                role: {
-                    select: {
-                        code: true,
+        const user = await withDbRetry(() =>
+            prisma.user.findUnique({
+                where: { id: payload.userId },
+                select: {
+                    id: true,
+                    email: true,
+                    status: true,
+                    role: {
+                        select: {
+                            code: true,
+                        },
                     },
+                    clientProfile: { select: { id: true } },
+                    technicianProfile: { select: { id: true } },
                 },
-                clientProfile: { select: { id: true } },
-                technicianProfile: { select: { id: true } },
-            },
-        });
+            }),
+        );
 
         if (!user || user.status !== "ACTIVE") {
             return null;
@@ -269,10 +271,12 @@ async function resolveCurrentApiUser() {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: currentApiUserSelect,
-    });
+    const user = await withDbRetry(() =>
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        select: currentApiUserSelect,
+      }),
+    );
 
     if (!user || user.status !== "ACTIVE") {
       return null;
@@ -302,10 +306,12 @@ export const getCurrentPageUser = cache(async () => {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: currentPageUserSelect,
-    });
+    const user = await withDbRetry(() =>
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        select: currentPageUserSelect,
+      }),
+    );
 
     if (!user || user.status !== "ACTIVE") {
       return null;
@@ -314,8 +320,10 @@ export const getCurrentPageUser = cache(async () => {
     return user;
   } catch (error) {
     if (isPrismaConnectionTimeoutError(error)) {
+      // Saturación temporal del pool: NO devolvemos null (eso cerraría la sesión
+      // y redirigiría a /login). Señalizamos "ocupado" para mostrar un reintento.
       console.warn("[auth][session] Timeout temporal cargando usuario actual (page)");
-      return null;
+      throw new DbBusyError(error);
     }
 
     console.error("[auth][session] No se pudo cargar el usuario actual (page)", error);

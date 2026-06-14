@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentHeaderSession, getCurrentUser } from "@/lib/auth/session"; // 💡 Importamos getCurrentUser
+import { getCurrentHeaderSession, getCurrentPageUser } from "@/lib/auth/session";
 import { APP_NAME, PUBLIC_NAV } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -9,8 +9,17 @@ import { ModeSwitcher } from "@/components/dashboard/ModeSwitcher"; // 💡 Impo
 export async function SiteHeader() {
     const session = await getCurrentHeaderSession();
 
-    // 💡 Consultamos el usuario en la BD solo si hay una sesión activa
-    const user = session ? await getCurrentUser() : null;
+    // 💡 Reutilizamos getCurrentPageUser (cache() por request): el header y la
+    // página comparten una sola consulta user.findUnique. Si la BD está ocupada
+    // (DbBusyError) degradamos el header en lugar de tumbar todo el layout.
+    let user: Awaited<ReturnType<typeof getCurrentPageUser>> = null;
+    if (session) {
+        try {
+            user = await getCurrentPageUser();
+        } catch {
+            user = null;
+        }
+    }
 
     // Verificamos si cuenta con ambos perfiles y extraemos el rol activo del JWT
     const hasClient = !!user?.clientProfile;
