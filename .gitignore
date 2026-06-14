@@ -46,3 +46,6 @@ node_modules
 # runtime uploads
 /public/uploads/avatars/*
 !/public/uploads/avatars/.gitkeep
+
+# Private uploaded files
+storage/private/uploads/**
