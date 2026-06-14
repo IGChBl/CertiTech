@@ -13,7 +13,9 @@ El proyecto está construido como base MVP profesional, escalable y lista para e
 - ORM: Prisma
 - Auth: JWT stateless (access + refresh en cookies httpOnly)
 - Chat en tiempo real: Socket.IO (endpoint `pages/api/socket.ts`)
+- Mapas: Leaflet (`leaflet` + `@types/leaflet`) para ubicación de técnicos
 - Validaciones: Zod
+- Imágenes: `sharp` (optimización de avatares)
 - Seguridad básica: hash con bcrypt, rate limit en endpoints sensibles, guardas por rol
 
 ## Roles de usuario
@@ -26,14 +28,17 @@ El proyecto está construido como base MVP profesional, escalable y lista para e
 
 - Landing profesional con buscador y secciones de valor
 - Registro/login para cliente y técnico
+- Modo de perfil dual: un mismo usuario puede operar como cliente y técnico y alternar con un switcher de modo
 - Validación de mayoría de edad (18+) para cualquier registro
 - Verificación de correo (flujo token)
 - Verificación de cliente y técnico con estados y restricciones de uso
 - Suscripciones técnicas (FREE, MONTHLY, YEARLY) con control de visibilidad y acceso
 - Foto de perfil para cliente y técnico con subida local y optimización automática
 - Recuperación y restablecimiento de contraseña
+- Carga de documentos del técnico (identidad, récord policial, evidencias, certificaciones) en almacenamiento privado fuera de `public/`
+- Revisión documental del técnico desde el panel admin (checklist de documentos obligatorios)
 - Perfil técnico público con reputación, categorías y estado de verificación
-- Directorio de técnicos con filtros
+- Directorio de técnicos con filtros y ubicación en mapa (Leaflet)
 - Publicación y gestión de solicitudes de servicio
 - Favoritos de técnicos
 - Valoraciones y comentarios post-servicio
@@ -58,9 +63,14 @@ Se modelaron entidades clave:
 Incluye:
 
 - `prisma/schema.prisma`
-- migración inicial SQL: `prisma/migrations/20260416173000_init/migration.sql`
-- migración de verificación/edad: `prisma/migrations/20260505133500_verification_age_hardening/migration.sql`
 - seed limpio: `prisma/seed.ts`
+
+Migraciones aplicadas (en orden):
+
+1. `20260416173000_init` — esquema inicial
+2. `20260505133500_verification_age_hardening` — verificación y regla de edad
+3. `20260513110000_technician_subscriptions` — suscripciones técnicas
+4. `20260614114949_add_technician_location_coords` — coordenadas de ubicación del técnico
 
 ## Variables de entorno
 
@@ -82,7 +92,8 @@ Variables principales:
 - `MAIL_FROM`
 - `RESEND_API_KEY` (si `EMAIL_PROVIDER=resend`)
 - `UPLOAD_PROVIDER` (`local`, preparado para `cloudinary`, `supabase`, `s3`)
-- `UPLOAD_LOCAL_PATH` (por defecto `public/uploads`)
+- `UPLOAD_LOCAL_PATH` (archivos públicos como avatares; por defecto `public/uploads`)
+- `PRIVATE_UPLOAD_LOCAL_PATH` (documentos privados del técnico; por defecto `storage/private/uploads`). Variable opcional usada por `src/lib/uploads/config.ts`; si no se define, usa el valor por defecto. Aún no está listada en `.env.example`.
 - variables de upload/cloud y mapas (preparadas)
 
 Configuración recomendada para Supabase:
@@ -136,6 +147,44 @@ La capa de upload se centraliza en:
 
 Actualmente el provider `local` esta activo y los providers cloud quedan preparados para implementacion posterior sin romper el contrato del endpoint.
 
+## Almacenamiento de documentos privados del técnico
+
+A diferencia de los avatares (públicos en `public/uploads/avatars`), los documentos del técnico (documento de identidad, récord policial, evidencias de trabajo y certificaciones) son **sensibles** y se guardan fuera de `public/`:
+
+- Carpeta local: `storage/private/uploads/technicians`
+- Configuración: `PRIVATE_UPLOAD_LOCAL_PATH` (por defecto `storage/private/uploads`) en `src/lib/uploads/config.ts`
+- Los archivos privados **no se versionan**: `.gitignore` excluye `storage/private/uploads/**`
+
+Estos archivos no se sirven como estáticos. Se entregan solo a través de un endpoint autenticado:
+
+- `GET /api/technician/profile-assets/document?kind=<tipo>&index=<n>&technicianProfileId=<id>`
+- Control de acceso:
+  - `TECHNICIAN`: solo puede ver sus **propios** documentos (resueltos por su `userId`).
+  - `ADMIN`: puede ver los documentos de cualquier técnico, indicando `technicianProfileId`.
+  - Cualquier otro rol (incluido cliente) recibe `403`.
+- Respuesta con cabeceras `Cache-Control: private, no-store` y `X-Content-Type-Options: nosniff`.
+
+> Importante: estos documentos contienen datos personales. No los expongas como estáticos, no los subas a Git y no los publiques en almacenamiento sin control de acceso.
+
+## Correo (Mailtrap / sandbox de email)
+
+El envío de correo (verificación de cuenta y recuperación de contraseña) está controlado por `EMAIL_PROVIDER`:
+
+- `console` (por defecto en desarrollo): los correos se registran en la consola del servidor; no se envía nada real.
+- `smtp`: usa un servidor SMTP. Para pruebas seguras se recomienda **Mailtrap** como sandbox (no entrega correos reales a usuarios):
+  ```env
+  EMAIL_PROVIDER="smtp"
+  SMTP_HOST="smtp.mailtrap.io"
+  SMTP_PORT="2525"
+  SMTP_USER="<usuario-de-tu-inbox-mailtrap>"
+  SMTP_PASS="<password-de-tu-inbox-mailtrap>"
+  MAIL_FROM="CertiTech <no-reply@certitech.app>"
+  ```
+  Las credenciales `SMTP_USER`/`SMTP_PASS` se obtienen del inbox de Mailtrap (Settings > SMTP). Son secretos: no los publiques ni los subas a Git.
+- `resend`: usa Resend con `RESEND_API_KEY` (no integrado por defecto).
+
+En desarrollo, si el envío falla la cuenta igualmente se crea y el usuario puede reenviar el correo de verificación desde su dashboard.
+
 ## Instalacion y ejecucion local
 
 1. Instalar dependencias
@@ -147,7 +196,8 @@ npm install
 2. Generar cliente Prisma
 
 ```bash
-npm run prisma:generate
+npx prisma generate
+# equivalente: npm run prisma:generate
 ```
 
 3. Aplicar migraciones
@@ -165,10 +215,23 @@ npm run db:seed
 5. Iniciar entorno de desarrollo
 
 ```bash
-npm run dev
+npm run dev:stable   # recomendado: dev con Webpack, más estable para cambios frecuentes de rol/sesión
+# alternativa: npm run dev   (Turbopack)
 ```
 
 App local: `http://localhost:3000`
+
+## Validación del proyecto
+
+Antes de subir cambios, valida que el proyecto compila y pasa el linter:
+
+```bash
+npm run lint        # ESLint
+npx tsc --noEmit    # chequeo de tipos sin emitir archivos
+npm run build       # build de producción de Next.js
+```
+
+Estado actual (verificado en esta sesión): `npm run lint` y `npx tsc --noEmit` pasan sin errores.
 
 ## Credenciales demo (seed limpio)
 
@@ -327,6 +390,8 @@ Desde ese modulo el administrador puede:
 - Cambiar estado manualmente
 - Ver evidencia/documentos del tecnico y solicitudes de verificacion asociadas
 
+El módulo incluye un **checklist de revisión documental**: marca los documentos obligatorios (documento de identidad, récord policial) y advierte al admin cuando faltan archivos requeridos, evitando aprobar a un técnico con documentación incompleta. Los documentos se visualizan a través del endpoint privado autenticado (ver "Almacenamiento de documentos privados del técnico").
+
 Solo el rol `ADMIN` puede actualizar estados mediante `PATCH /api/admin/verifications`.
 
 ## Como probar manualmente
@@ -401,15 +466,22 @@ Para pruebas intensivas (cerrar sesión e iniciar sesión con cliente/técnico/a
 ## Scripts utiles
 
 ```bash
-npm run dev
-npm run dev:stable
-npm run build
-npm run start
-npm run lint
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:studio
-npm run db:seed
+npm run dev          # Next dev con Turbopack
+npm run dev:stable   # Next dev con Webpack (recomendado para sesiones largas / cambio de roles)
+npm run build        # build de producción
+npm run start        # servir el build
+npm run lint         # ESLint
+npm run prisma:generate   # = npx prisma generate
+npm run prisma:migrate    # aplicar migraciones (usa DIRECT_URL)
+npm run prisma:studio     # explorar la BD
+npm run db:seed           # seed limpio (deja solo el admin + categorías)
+```
+
+Comandos sueltos útiles:
+
+```bash
+npx prisma generate
+npx tsc --noEmit     # chequeo de tipos
 ```
 
 ## Estructura del proyecto
@@ -482,10 +554,21 @@ Cubierta con base funcional y seed limpio para pruebas controladas:
 - pagos
 - app movil
 
+## Limitaciones conocidas
+
+- **Pagos no integrados**: las suscripciones técnicas (FREE/MONTHLY/YEARLY) tienen la arquitectura lista (`src/lib/subscriptions/*`) pero no hay pasarela real; la renovación deja el estado en `PENDING_PAYMENT` y el cambio efectivo lo hace el admin manualmente. Stripe queda pendiente.
+- **Almacenamiento de archivos local**: avatares y documentos privados se guardan en disco del servidor (`public/uploads` y `storage/private/uploads`). No es persistente en plataformas serverless/efímeras; los providers cloud (`cloudinary`/`supabase`/`s3`) están preparados pero no implementados.
+- **Presión sobre Supabase Free**: con varias sesiones/roles concurrentes el pool puede saturarse (P2024 / "base de datos ocupada"). Mitigado con `connection_limit`/`pool_timeout`, reintentos (`withDbRetry`) y reducción del polling de no leídos, pero sigue siendo un límite del plan gratuito.
+- **`PRIVATE_UPLOAD_LOCAL_PATH` no está en `.env.example`**: el código tiene un valor por defecto, pero conviene documentar la variable en el ejemplo.
+- **Notificaciones**: son internas (en BD); aún no hay push ni email enriquecido.
+- **Geolocalización**: existen coordenadas y mapa (Leaflet) del técnico, pero no un buscador "cerca de mí" completo.
+- **Motivos de rechazo / notificación de verificación**: el rechazo guarda motivo, pero la comunicación al técnico puede mejorarse.
+
 ## Notas de desarrollo
 
 - En entorno local sin SMTP real, los correos se registran en consola y el endpoint de recuperacion devuelve `previewToken` en desarrollo para pruebas.
 - El endpoint de Socket.IO es `GET /api/socket` (bootstrap) y websocket path `/api/socket_io`.
+- La estabilidad de Prisma/Supabase se apoya en `src/lib/prisma-errors.ts` (`withDbRetry`, `isDbBusyError`, `DbBusyError`) y un error boundary global (`src/app/error.tsx`) que muestra un mensaje de reintento en vez de cerrar la sesión cuando la BD está ocupada.
 
 ---
 
