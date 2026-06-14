@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 type TokenPayload = {
   userId: string;
   role: "CLIENT" | "TECHNICIAN" | "ADMIN";
+  activeRole?: "CLIENT" | "TECHNICIAN";
   email: string;
   type: "access" | "refresh";
 };

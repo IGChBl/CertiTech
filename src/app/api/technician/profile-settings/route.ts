@@ -7,6 +7,8 @@ const updatePricesSchema = z
   .object({
     referencePriceMin: z.number().int().positive("El precio mínimo debe ser mayor a 0.").optional().nullable(),
     referencePriceMax: z.number().int().positive("El precio máximo debe ser mayor a 0.").optional().nullable(),
+    latitude: z.number().optional().nullable(),
+    longitude: z.number().optional().nullable(),
   })
   .superRefine((value, ctx) => {
     if (
@@ -38,6 +40,14 @@ export async function PATCH(request: NextRequest) {
       body?.referencePriceMax === "" || body?.referencePriceMax === null || body?.referencePriceMax === undefined
         ? null
         : Number(body.referencePriceMax),
+    latitude:
+      body?.latitude === "" || body?.latitude === null || body?.latitude === undefined
+        ? null
+        : Number(body.latitude),
+    longitude:
+      body?.longitude === "" || body?.longitude === null || body?.longitude === undefined
+        ? null
+        : Number(body.longitude),
   };
 
   const parsed = updatePricesSchema.safeParse(normalized);
@@ -53,10 +63,14 @@ export async function PATCH(request: NextRequest) {
     data: {
       referencePriceMin: parsed.data.referencePriceMin ?? null,
       referencePriceMax: parsed.data.referencePriceMax ?? null,
+      latitude: parsed.data.latitude ?? null,
+      longitude: parsed.data.longitude ?? null,
     },
     select: {
       referencePriceMin: true,
       referencePriceMax: true,
+      latitude: true,
+      longitude: true,
     },
   });
 

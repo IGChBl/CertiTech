@@ -6,6 +6,24 @@ import { sendMessageSchema } from "@/lib/validations/chat";
 import { markChatAsRead } from "@/lib/chat/read";
 import { getPrismaFriendlyErrorMessage, isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
 
+type UpdateMessageBody = {
+  messageId?: string;
+  content?: string;
+};
+
+function isUpdateMessageBody(value: unknown): value is UpdateMessageBody {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const body = value as Record<string, unknown>;
+
+  return (
+    (typeof body.messageId === "string" || body.messageId === undefined) &&
+    (typeof body.content === "string" || body.content === undefined)
+  );
+}
+
 async function assertParticipant(chatId: string, userId: string) {
   return prisma.chatParticipant.findUnique({
     where: {
@@ -163,6 +181,65 @@ export async function POST(
     return NextResponse.json(
       {
         error: getPrismaFriendlyErrorMessage(error, "No se pudo enviar el mensaje en este momento."),
+      },
+      { status },
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const auth = await requireAuth();
+    if (auth.error || !auth.user) return auth.error;
+
+    const { id } = await context.params;
+
+    const participant = await assertParticipant(id, auth.user.id);
+    if (!participant) {
+      return NextResponse.json({ error: "No autorizado para este chat" }, { status: 403 });
+    }
+
+    const body: unknown = await request.json().catch(() => null);
+
+    if (!isUpdateMessageBody(body)) {
+      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+    }
+
+    const messageId = body.messageId;
+    const newContent = body.content?.trim();
+
+    if (!messageId || !newContent) {
+      return NextResponse.json({ error: "messageId y content son requeridos" }, { status: 400 });
+    }
+
+    const existing = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        chatId: id,
+        senderId: auth.user.id,
+      },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Mensaje no encontrado en este chat" }, { status: 404 });
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { content: newContent },
+    });
+
+    return NextResponse.json({ message: updated });
+  } catch (error) {
+    console.error("[chats][messages][PATCH] Error actualizando mensaje", error);
+    const status = isPrismaConnectionTimeoutError(error) ? 503 : 500;
+    return NextResponse.json(
+      {
+        error: getPrismaFriendlyErrorMessage(error, "No se pudo actualizar el mensaje en este momento."),
       },
       { status },
     );

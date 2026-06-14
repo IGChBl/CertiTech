@@ -49,3 +49,5 @@ node_modules
 
 # Private uploaded files
 storage/private/uploads/**
+# JetBrains IDE
+.idea/

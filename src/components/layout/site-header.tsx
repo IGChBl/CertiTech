@@ -1,63 +1,95 @@
 import Link from "next/link";
-import { getCurrentHeaderSession } from "@/lib/auth/session";
-import { APP_NAME, PUBLIC_NAV, ROLE_HOME } from "@/lib/constants";
+import { getCurrentHeaderSession, getCurrentUser } from "@/lib/auth/session"; // 💡 Importamos getCurrentUser
+import { APP_NAME, PUBLIC_NAV } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { UnreadMessagesButton } from "@/components/chat/unread-messages-button";
+import { ModeSwitcher } from "@/components/dashboard/ModeSwitcher"; // 💡 Importamos el Switcher
 
 export async function SiteHeader() {
-  const session = await getCurrentHeaderSession();
+    const session = await getCurrentHeaderSession();
 
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/30 bg-white/80 backdrop-blur-lg">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-        <Link href="/" className="text-lg font-bold tracking-tight text-slate-900">
-          {APP_NAME}
-        </Link>
+    // 💡 Consultamos el usuario en la BD solo si hay una sesión activa
+    const user = session ? await getCurrentUser() : null;
 
-        <nav className="hidden items-center gap-5 md:flex">
-          {PUBLIC_NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-slate-600 transition hover:text-slate-900"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+    // Verificamos si cuenta con ambos perfiles y extraemos el rol activo del JWT
+    const hasClient = !!user?.clientProfile;
+    const hasTech = !!user?.technicianProfile;
+    const currentActiveRole = (session?.activeRole as "CLIENT" | "TECHNICIAN") ?? "CLIENT";
 
-        <div className="flex items-center gap-2">
-          {session ? (
-            <>
-              <UnreadMessagesButton role={session.role} />
-              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1">
-                <UserAvatar name={session.email} size={30} />
-                <p className="hidden max-w-[140px] truncate text-xs font-medium text-slate-600 sm:block">
-                  {session.email}
-                </p>
-              </div>
-              <Link href={ROLE_HOME[session.role]}>
-                <Button variant="secondary">Mi panel</Button>
-              </Link>
-              <form action="/api/auth/logout" method="post">
-                <Button type="submit" variant="ghost">
-                  Cerrar sesión
-                </Button>
-              </form>
-            </>
-          ) : (
-            <>
-              <Link href="/login">
-                <Button variant="ghost">Entrar</Button>
-              </Link>
-              <Link href="/registro">
-                <Button>Crear cuenta</Button>
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
-  );
+    // 💡 Resolvemos dinámicamente el destino de "Mi panel" según el modo activo
+    const dashboardDestination = session?.role === "ADMIN"
+        ? "/dashboard/admin"
+        : currentActiveRole === "CLIENT"
+            ? "/dashboard/cliente"
+            : "/dashboard/tecnico";
+
+    return (
+        <header className="sticky top-0 z-40 border-b border-white/30 bg-white/80 backdrop-blur-lg">
+            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 md:px-6">
+                <Link href="/" className="text-lg font-bold tracking-tight text-slate-900">
+                    {APP_NAME}
+                </Link>
+
+                <nav className="hidden items-center gap-5 md:flex">
+                    {PUBLIC_NAV.map((item) => (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className="text-sm font-medium text-slate-600 transition hover:text-slate-900"
+                        >
+                            {item.label}
+                        </Link>
+                    ))}
+                </nav>
+
+                <div className="flex items-center gap-2">
+                    {session ? (
+                        <>
+                            {/* 🎛️ BOTÓN INTERACTIVO: Solo aparece si el usuario tiene perfil dual */}
+                            {hasClient && hasTech && (
+                                <div className="mr-2 hidden sm:block">
+                                    <ModeSwitcher
+                                        hasClientProfile={hasClient}
+                                        hasTechnicianProfile={hasTech}
+                                        currentActiveRole={currentActiveRole}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Ajustamos el chat para que use el activeRole si no es admin */}
+                            <UnreadMessagesButton role={session.role === "ADMIN" ? "ADMIN" : currentActiveRole} />
+
+                            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1">
+                                <UserAvatar name={session.email} size={30} />
+                                <p className="hidden max-w-[140px] truncate text-xs font-medium text-slate-600 sm:block">
+                                    {session.email}
+                                </p>
+                            </div>
+
+                            {/* 🚀 ENLACE DINÁMICO: Redirige según el modo activo */}
+                            <Link href={dashboardDestination}>
+                                <Button variant="secondary">Mi panel</Button>
+                            </Link>
+
+                            <form action="/api/auth/logout" method="post">
+                                <Button type="submit" variant="ghost">
+                                    Cerrar sesión
+                                </Button>
+                            </form>
+                        </>
+                    ) : (
+                        <>
+                            <Link href="/login">
+                                <Button variant="ghost">Entrar</Button>
+                            </Link>
+                            <Link href="/registro">
+                                <Button>Crear cuenta</Button>
+                            </Link>
+                        </>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
 }

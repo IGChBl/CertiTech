@@ -32,11 +32,14 @@ async function readResponseData(response: Response): Promise<{ error?: string; m
 export function ServiceRequestForm({
   categories,
   technicians,
+  defaultTechnicianId,
 }: {
   categories: CategoryOption[];
   technicians: TechnicianOption[];
+  defaultTechnicianId?: string;
 }) {
   const router = useRouter();
+  const bookedTech = defaultTechnicianId ? technicians.find((t) => t.userId === defaultTechnicianId) : undefined;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -113,14 +116,15 @@ export function ServiceRequestForm({
           </select>
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="service-request-technician" className="block text-sm font-medium text-slate-700">
-            Técnico (opcional)
+        <div className={`space-y-1 p-3 rounded-xl transition ${defaultTechnicianId ? "bg-slate-50 ring-2 ring-slate-900" : ""}`}>
+          <label htmlFor="service-request-technician" className="block text-sm font-semibold text-slate-700">
+            Técnico {defaultTechnicianId ? "Seleccionado" : "(opcional)"}
           </label>
           <select
             id="service-request-technician"
             name="technicianId"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+            defaultValue={defaultTechnicianId ?? ""}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-medium"
           >
             <option value="">Asignar luego / abierto</option>
             {technicians.map((technician) => (
@@ -129,6 +133,12 @@ export function ServiceRequestForm({
               </option>
             ))}
           </select>
+          {defaultTechnicianId && bookedTech && (
+            <p className="text-xs font-semibold text-slate-650 mt-1 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 bg-slate-900 rounded-full inline-block animate-ping"></span>
+              Agendando directamente con {bookedTech.label}
+            </p>
+          )}
         </div>
       </div>
 

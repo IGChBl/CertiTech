@@ -18,6 +18,25 @@ type AuthenticatedSocketData = {
   userId: string;
 };
 
+type SocketCorsOrigin = Array<string | RegExp> | false;
+
+function getSocketCorsOrigin(): SocketCorsOrigin {
+  const configuredOrigins = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.SOCKET_ALLOWED_ORIGINS,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (process.env.NODE_ENV !== "production") {
+    return [...configuredOrigins, /^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/];
+  }
+
+  return configuredOrigins.length > 0 ? configuredOrigins : false;
+}
+
 export const config = {
   api: {
     bodyParser: false,
@@ -85,7 +104,8 @@ export default function handler(_req: NextApiRequest, res: NextApiResponseServer
       path: "/api/socket_io",
       addTrailingSlash: false,
       cors: {
-        origin: "*",
+        origin: getSocketCorsOrigin(),
+        credentials: true,
       },
     });
 
@@ -216,6 +236,48 @@ export default function handler(_req: NextApiRequest, res: NextApiResponseServer
           },
         });
       });
+
+      socket.on(
+        "update-message",
+        async (payload: { chatId?: string; messageId?: string; newContent?: string }) => {
+          const userId = (socket.data as AuthenticatedSocketData).userId;
+          const chatId = typeof payload?.chatId === "string" ? payload.chatId : "";
+          const messageId = typeof payload?.messageId === "string" ? payload.messageId : "";
+          const newContent = typeof payload?.newContent === "string" ? payload.newContent.trim() : "";
+
+          if (!chatId || !messageId || !newContent) {
+            return;
+          }
+
+          if (!(await isChatParticipant(chatId, userId))) {
+            return;
+          }
+
+          const existing = await prisma.message.findFirst({
+            where: {
+              id: messageId,
+              chatId,
+              senderId: userId,
+            },
+            select: { id: true },
+          });
+
+          if (!existing) {
+            return;
+          }
+
+          const updated = await prisma.message.update({
+            where: { id: messageId },
+            data: { content: newContent },
+          });
+
+          io.to(chatId).emit("message:update", {
+            id: updated.id,
+            chatId,
+            content: updated.content,
+          });
+        },
+      );
     });
 
     res.socket.server.io = io;
