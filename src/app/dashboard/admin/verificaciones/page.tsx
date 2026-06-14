@@ -22,18 +22,113 @@ function technicianDocumentUrl(kind: string, technicianProfileId: string, index?
   return `/api/technician/profile-assets/document?${params.toString()}`;
 }
 
-function AdminDocumentLink({ href, label }: { href: string; label: string }) {
+type DocumentStatus = "uploaded" | "missing" | "unavailable";
+
+function documentStatusForReference(reference: string | null | undefined): DocumentStatus {
+  if (reference === null || reference === undefined || reference.length === 0) return "missing";
+  if (reference.trim().length === 0) return "unavailable";
+  return "uploaded";
+}
+
+function DocumentStatusBadge({ status, required }: { status: DocumentStatus; required: boolean }) {
+  if (status === "uploaded") {
+    return <span className="font-medium text-emerald-700">Cargado</span>;
+  }
+  if (status === "unavailable") {
+    return <span className="font-medium text-slate-600">No disponible</span>;
+  }
+  return (
+    <span className="font-medium text-amber-700">
+      {required ? "Pendiente — falta carga" : "No disponible"}
+    </span>
+  );
+}
+
+function DocumentViewLink({ href, label = "Ver documento" }: { href: string; label?: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+    >
+      {label}
+    </a>
+  );
+}
+
+function DocumentReviewRow({
+  label,
+  reference,
+  href,
+  required,
+}: {
+  label: string;
+  reference: string | null;
+  href: string;
+  required: boolean;
+}) {
+  const status = documentStatusForReference(reference);
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-      <span className="font-medium text-slate-700">{label}</span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-100"
-      >
-        Ver documento
-      </a>
+      <div className="flex flex-col gap-0.5">
+        <span className="font-medium text-slate-900">
+          {label}
+          {required ? (
+            <span className="ml-1 text-[10px] uppercase tracking-wide text-slate-500">obligatorio</span>
+          ) : null}
+        </span>
+        <DocumentStatusBadge status={status} required={required} />
+      </div>
+      {status === "uploaded" ? <DocumentViewLink href={href} /> : null}
+    </div>
+  );
+}
+
+function DocumentReviewListRow({
+  label,
+  references,
+  buildHref,
+  required,
+}: {
+  label: string;
+  references: string[];
+  buildHref: (index: number) => string;
+  required: boolean;
+}) {
+  const count = references.length;
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+      <div className="flex flex-col gap-0.5">
+        <span className="font-medium text-slate-900">
+          {label}
+          {required ? (
+            <span className="ml-1 text-[10px] uppercase tracking-wide text-slate-500">obligatorio</span>
+          ) : null}
+        </span>
+        {count > 0 ? (
+          <span className="font-medium text-emerald-700">
+            {count} archivo{count === 1 ? "" : "s"} cargado{count === 1 ? "" : "s"}
+          </span>
+        ) : (
+          <span className="font-medium text-amber-700">
+            {required ? "Pendiente — falta carga" : "No disponible"}
+          </span>
+        )}
+      </div>
+      {count > 0 ? (
+        <ul className="space-y-1">
+          {references.map((_, index) => (
+            <li
+              key={`${label}-${index}`}
+              className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1"
+            >
+              <span className="text-slate-700">{`${label} #${index + 1}`}</span>
+              <DocumentViewLink href={buildHref(index)} label="Ver" />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -213,6 +308,8 @@ export default async function AdminVerificacionesPage() {
               const hasPoliceRecord = Boolean(tech.policeRecordUrl?.trim());
               const hasEvidence = workEvidence.length > 0;
               const hasCertifications = certifications.length > 0;
+              const allDocumentsComplete =
+                hasIdentityDocument && hasPoliceRecord && hasEvidence && hasCertifications;
 
               return (
                 <Card key={tech.id} className="space-y-3">
@@ -236,53 +333,43 @@ export default async function AdminVerificacionesPage() {
                     <p>Correo verificado: {tech.user.isEmailVerified ? "Sí" : "No"}</p>
                     <p>Años de experiencia: {tech.yearsExperience}</p>
                     <p>Categorías: {tech.services.map((service) => service.category.name).join(", ") || "Sin categorías"}</p>
-                    <p>Documento: {hasIdentityDocument ? "Cargado" : "No cargado"}</p>
-                    <p>Evidencias: {workEvidence.length}</p>
-                    <p>Certificaciones: {certifications.length}</p>
-                    <p>Récord policial: {hasPoliceRecord ? "Cargado" : "Pendiente"}</p>
                     <p>Última revisión: {formatDate(tech.verifiedAt)}</p>
                     <p>Revisado por: {tech.verifiedBy?.email ?? "Sin asignar"}</p>
                     <p>Solicitud verificación: {latestRequest?.status ?? "No existe"}</p>
                   </div>
 
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                    <p className="font-semibold text-slate-900">Checklist de aprobación</p>
-                    <p>{hasIdentityDocument ? "✓ Documento de identidad cargado" : "✗ Documento de identidad pendiente"}</p>
-                    <p>{hasPoliceRecord ? "✓ Récord policial cargado" : "✗ Récord policial pendiente"}</p>
-                    <p>{hasEvidence ? "✓ Evidencias de trabajo cargadas" : "✗ Evidencias de trabajo pendientes"}</p>
-                    <p>{hasCertifications ? "✓ Certificaciones cargadas" : "✗ Certificaciones pendientes"}</p>
-                  </div>
-
                   <div className="space-y-2">
-                    {tech.identityDocumentUrl ? (
-                      <AdminDocumentLink
-                        href={technicianDocumentUrl("identityDocument", tech.id)}
-                        label="Documento de identidad cargado"
-                      />
+                    <p className="text-sm font-semibold text-slate-900">Documentos para revisión</p>
+                    {!allDocumentsComplete ? (
+                      <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Faltan documentos obligatorios. No apruebes a este técnico hasta que se completen los archivos requeridos.
+                      </p>
                     ) : null}
 
-                    {hasPoliceRecord ? (
-                      <AdminDocumentLink
-                        href={technicianDocumentUrl("policeRecord", tech.id)}
-                        label="Récord policial cargado"
-                      />
-                    ) : null}
-
-                    {workEvidence.map((url, index) => (
-                      <AdminDocumentLink
-                        key={url}
-                        href={technicianDocumentUrl("workEvidence", tech.id, index)}
-                        label={`Evidencia ${index + 1} cargada`}
-                      />
-                    ))}
-
-                    {certifications.map((url, index) => (
-                      <AdminDocumentLink
-                        key={url}
-                        href={technicianDocumentUrl("certification", tech.id, index)}
-                        label={`Certificación ${index + 1} cargada`}
-                      />
-                    ))}
+                    <DocumentReviewRow
+                      label="Documento de identidad"
+                      reference={tech.identityDocumentUrl}
+                      href={technicianDocumentUrl("identityDocument", tech.id)}
+                      required
+                    />
+                    <DocumentReviewRow
+                      label="Récord policial"
+                      reference={tech.policeRecordUrl}
+                      href={technicianDocumentUrl("policeRecord", tech.id)}
+                      required
+                    />
+                    <DocumentReviewListRow
+                      label="Evidencias de trabajo"
+                      references={workEvidence}
+                      buildHref={(index) => technicianDocumentUrl("workEvidence", tech.id, index)}
+                      required
+                    />
+                    <DocumentReviewListRow
+                      label="Certificaciones"
+                      references={certifications}
+                      buildHref={(index) => technicianDocumentUrl("certification", tech.id, index)}
+                      required
+                    />
                   </div>
 
                   {tech.rejectionReason ? (
