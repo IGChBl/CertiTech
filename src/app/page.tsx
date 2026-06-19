@@ -9,7 +9,7 @@ import { TechnicianCard } from "@/components/cards/technician-card";
 import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 
 export default async function Home() {
-  const categoriesResult = await prisma.serviceCategory
+  const categoriesPromise = prisma.serviceCategory
     .findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -26,7 +26,7 @@ export default async function Home() {
       return { categories: [], hasWarning: true };
     });
 
-  const featuredTechniciansResult = await prisma.technicianProfile
+  const featuredTechniciansPromise = prisma.technicianProfile
     .findMany({
       where: buildPublicTechnicianWhere(),
       orderBy: [
@@ -65,6 +65,11 @@ export default async function Home() {
       console.error("[home] Error cargando técnicos destacados", error);
       return { featuredTechnicians: [], hasWarning: true };
     });
+
+  const [categoriesResult, featuredTechniciansResult] = await Promise.all([
+    categoriesPromise,
+    featuredTechniciansPromise,
+  ]);
 
   const categories = categoriesResult.categories;
   const featuredTechnicians = featuredTechniciansResult.featuredTechnicians;
