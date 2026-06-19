@@ -1,12 +1,7 @@
 import Link from "next/link";
-<<<<<<< HEAD
 import Image from "next/image";
-import { getCurrentHeaderSession, getCurrentUser } from "@/lib/auth/session";
-import { PUBLIC_NAV } from "@/lib/constants";
-=======
 import { getCurrentHeaderSession, getCurrentPageUser } from "@/lib/auth/session";
-import { APP_NAME, PUBLIC_NAV } from "@/lib/constants";
->>>>>>> 3562d71667f979c95a83f838d6d058395cc1d9c0
+import { PUBLIC_NAV } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { UnreadMessagesButton } from "@/components/chat/unread-messages-button";
