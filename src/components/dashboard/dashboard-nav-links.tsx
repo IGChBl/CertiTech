@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useUnreadMessagesCount } from "@/lib/chat/unread-count-store";
 
 type DashboardRole = "CLIENT" | "TECHNICIAN" | "ADMIN";
@@ -41,6 +42,7 @@ export function DashboardNavLinks({
 }) {
   const resolvedRole = role ?? inferRoleFromLinks(links);
   const { unreadCount } = useUnreadMessagesCount(resolvedRole);
+  const pathname = usePathname();
 
   return (
     <>
@@ -48,12 +50,22 @@ export function DashboardNavLinks({
         const isChatsLink = link.href.endsWith("/chats");
         const showUnreadBadge =
           isChatsLink && (resolvedRole === "CLIENT" || resolvedRole === "TECHNICIAN") && unreadCount > 0;
+        const isActive = pathname === link.href;
 
         return (
           <Link
             key={link.href}
             href={link.href}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            className="rounded-lg px-3 py-2 text-sm font-medium transition"
+            style={
+              isActive
+                ? {
+                    background: "var(--brand-teal-glow)",
+                    color: "var(--brand-teal-dark)",
+                    fontWeight: 600,
+                  }
+                : { color: "#475569" }
+            }
           >
             <span className="inline-flex items-center gap-2">
               <span>{link.label}</span>

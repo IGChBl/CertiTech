@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --app-bg: #f8fafc;
-  --app-card: #ffffff;
+  /* Brand palette */
+  --brand-navy:       #1B2340;
+  --brand-navy-hover: #2A3556;
+  --brand-teal:       #2BBFAA;
+  --brand-teal-dark:  #17897A;
+  --brand-teal-mid:   #1AA090;
+  --brand-teal-glow:  rgba(43, 191, 170, 0.15);
+  --brand-teal-ring:  rgba(43, 191, 170, 0.40);
+
+  /* Surface */
+  --app-bg:     #f8fafc;
+  --app-card:   #ffffff;
   --app-border: #e2e8f0;
 }
 
@@ -24,5 +34,5 @@ h4 {
 }
 
 ::selection {
-  background: rgba(14, 165, 233, 0.2);
+  background: var(--brand-teal-glow);
 }

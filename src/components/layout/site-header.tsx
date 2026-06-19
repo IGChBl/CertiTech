@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { getCurrentHeaderSession, getCurrentUser } from "@/lib/auth/session"; // 💡 Importamos getCurrentUser
-import { APP_NAME, PUBLIC_NAV } from "@/lib/constants";
+import Image from "next/image";
+import { getCurrentHeaderSession, getCurrentUser } from "@/lib/auth/session";
+import { PUBLIC_NAV } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { UnreadMessagesButton } from "@/components/chat/unread-messages-button";
-import { ModeSwitcher } from "@/components/dashboard/ModeSwitcher"; // 💡 Importamos el Switcher
+import { ModeSwitcher } from "@/components/dashboard/ModeSwitcher";
 
 export async function SiteHeader() {
     const session = await getCurrentHeaderSession();
@@ -27,8 +28,16 @@ export async function SiteHeader() {
     return (
         <header className="sticky top-0 z-40 border-b border-white/30 bg-white/80 backdrop-blur-lg">
             <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-                <Link href="/" className="text-lg font-bold tracking-tight text-slate-900">
-                    {APP_NAME}
+                <Link href="/" className="group transition-opacity hover:opacity-90">
+                    <Image
+                        src="/logo.jpg"
+                        alt="CertiTech — Confianza técnica a un click"
+                        width={220}
+                        height={82}
+                        className="h-20 w-auto object-contain"
+                        style={{ mixBlendMode: "multiply" }}
+                        priority
+                    />
                 </Link>
 
                 <nav className="hidden items-center gap-5 md:flex">

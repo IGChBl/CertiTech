@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <g transform="translate(50,50)">
+    <!-- upper-left: dark navy -->
+    <g transform="rotate(-60)">
+      <path d="M -15,-46 Q -28,-46 -28,-34 L -12,-14 Q 0,-8 12,-14 L 28,-34 Q 28,-46 15,-46 Z" fill="#1B2340"/>
+    </g>
+    <!-- top-center: bright teal -->
+    <g transform="rotate(0)">
+      <path d="M -15,-46 Q -28,-46 -28,-34 L -12,-14 Q 0,-8 12,-14 L 28,-34 Q 28,-46 15,-46 Z" fill="#2BBFAA"/>
+    </g>
+    <!-- upper-right: dark navy -->
+    <g transform="rotate(60)">
+      <path d="M -15,-46 Q -28,-46 -28,-34 L -12,-14 Q 0,-8 12,-14 L 28,-34 Q 28,-46 15,-46 Z" fill="#1B2340"/>
+    </g>
+    <!-- lower-right: medium teal -->
+    <g transform="rotate(120)">
+      <path d="M -15,-46 Q -28,-46 -28,-34 L -12,-14 Q 0,-8 12,-14 L 28,-34 Q 28,-46 15,-46 Z" fill="#1AA090"/>
+    </g>
+    <!-- bottom-center: dark teal -->
+    <g transform="rotate(180)">
+      <path d="M -15,-46 Q -28,-46 -28,-34 L -12,-14 Q 0,-8 12,-14 L 28,-34 Q 28,-46 15,-46 Z" fill="#17897A"/>
+    </g>
+    <!-- lower-left: dark navy -->
+    <g transform="rotate(240)">
+      <path d="M -15,-46 Q -28,-46 -28,-34 L -12,-14 Q 0,-8 12,-14 L 28,-34 Q 28,-46 15,-46 Z" fill="#1B2340"/>
+    </g>
+  </g>
+</svg>

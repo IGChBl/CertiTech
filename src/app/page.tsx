@@ -111,15 +111,68 @@ export default async function Home() {
           </div>
         </div>
 
-        <Card className="space-y-4 bg-slate-900 text-white">
-          <h2 className="text-2xl font-semibold">Beneficios para técnicos</h2>
-          <ul className="space-y-3 text-sm text-slate-200">
+        <Card className="relative space-y-4 overflow-hidden bg-[var(--brand-navy)] text-white">
+          {/* Triangle tessellation — capa oscura + capa teal enmascarada en diagonal */}
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            preserveAspectRatio="xMidYMid slice"
+          >
+            <defs>
+              {/* Capa oscura: navy / negro profundo */}
+              <pattern id="ct-dark" x="0" y="0" width="120" height="80" patternUnits="userSpaceOnUse">
+                <polygon points="0,0 0,40 30,0"       fill="#06101e"/>
+                <polygon points="0,40 30,0 60,40"     fill="#0f1e38"/>
+                <polygon points="30,0 60,40 90,0"     fill="#040c18"/>
+                <polygon points="60,40 90,0 120,40"   fill="#0d1f35"/>
+                <polygon points="90,0 120,0 120,40"   fill="#0a1828"/>
+                <polygon points="0,40 30,80 0,80"     fill="#0a1828"/>
+                <polygon points="0,40 30,80 60,40"    fill="#060d1c"/>
+                <polygon points="30,80 60,40 90,80"   fill="#0d3d35"/>
+                <polygon points="60,40 90,80 120,40"  fill="#060e1c"/>
+                <polygon points="90,80 120,40 120,80" fill="#0a1828"/>
+              </pattern>
+
+              {/* Capa teal: vibrante y luminosa */}
+              <pattern id="ct-teal" x="0" y="0" width="120" height="80" patternUnits="userSpaceOnUse">
+                <polygon points="0,0 0,40 30,0"       fill="#1AA090"/>
+                <polygon points="0,40 30,0 60,40"     fill="#2BBFAA"/>
+                <polygon points="30,0 60,40 90,0"     fill="#17897A"/>
+                <polygon points="60,40 90,0 120,40"   fill="#2BBFAA"/>
+                <polygon points="90,0 120,0 120,40"   fill="#1AA090"/>
+                <polygon points="0,40 30,80 0,80"     fill="#2BBFAA"/>
+                <polygon points="0,40 30,80 60,40"    fill="#1AA090"/>
+                <polygon points="30,80 60,40 90,80"   fill="#232d52"/>
+                <polygon points="60,40 90,80 120,40"  fill="#2BBFAA"/>
+                <polygon points="90,80 120,40 120,80" fill="#1AA090"/>
+              </pattern>
+
+              {/* Máscara diagonal: negro (top-left) → blanco (bottom-right)
+                  El negro oculta la capa teal, el blanco la revela */}
+              <linearGradient id="ct-diag-mask" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%"   stopColor="black"/>
+                <stop offset="100%" stopColor="white"/>
+              </linearGradient>
+              <mask id="ct-mask-diag">
+                <rect width="100%" height="100%" fill="url(#ct-diag-mask)"/>
+              </mask>
+            </defs>
+
+            {/* Capa base oscura — siempre visible */}
+            <rect width="100%" height="100%" fill="url(#ct-dark)"/>
+
+            {/* Capa teal — aparece gradualmente de arriba-izq a abajo-der */}
+            <rect width="100%" height="100%" fill="url(#ct-teal)" mask="url(#ct-mask-diag)"/>
+          </svg>
+
+          <h2 className="relative text-2xl font-semibold">Beneficios para técnicos</h2>
+          <ul className="relative space-y-3 text-sm text-slate-200">
             <li>Recibe solicitudes relevantes según tus categorías.</li>
             <li>Construye reputación con valoraciones reales.</li>
             <li>Gestiona chats y trabajos desde tu dashboard.</li>
             <li>Escala tu negocio con presencia digital profesional.</li>
           </ul>
-          <Link href="/registro" className="inline-flex items-center gap-2 text-sm font-semibold text-white underline">
+          <Link href="/registro" className="relative inline-flex items-center gap-2 text-sm font-semibold text-white underline">
             Crear perfil técnico <ArrowRight className="h-4 w-4" />
           </Link>
         </Card>
