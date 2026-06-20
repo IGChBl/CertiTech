@@ -8,7 +8,16 @@
       "mcp__visualize__show_widget",
       "Bash(curl -s http://localhost:3000/)",
       "Bash(find /Users/bairoz/Documents -maxdepth 3 -iname \"*certitech*\" -o -iname \"*logo*\" 2>/dev/null | grep -v \".next\" | head -20)",
-      "Bash(cp /Users/bairoz/Documents/certitech-logo.jpg /Users/bairoz/Documents/ServiceProject/CertiTech/public/logo.jpg && echo \"done\")"
+      "Bash(cp /Users/bairoz/Documents/certitech-logo.jpg /Users/bairoz/Documents/ServiceProject/CertiTech/public/logo.jpg && echo \"done\")",
+      "Bash(npx tsc *)",
+      "Bash(xargs ls)",
+      "Bash(npx prisma *)",
+      "Bash(mkdir -p /Users/bairoz/Documents/ServiceProject/CertiTech/src/app/api/payments/\\\\[id\\\\]/release)",
+      "Bash(mkdir -p /Users/bairoz/Documents/ServiceProject/CertiTech/src/app/api/payments/\\\\[id\\\\]/refund)",
+      "Bash(mkdir -p /Users/bairoz/Documents/ServiceProject/CertiTech/src/app/pago/\\\\[requestId\\\\])",
+      "Bash(kill 12149)",
+      "Bash(kill -9 12149)",
+      "Bash(xargs kill -9)"
     ]
   }
 }

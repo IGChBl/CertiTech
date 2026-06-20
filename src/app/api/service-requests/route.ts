@@ -228,6 +228,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const requiresPayment = !!data.technicianId && !!data.agreedPrice;
+
   const created = await prisma.serviceRequest.create({
     data: {
       clientId: auth.user.id,
@@ -242,6 +244,8 @@ export async function POST(request: NextRequest) {
       urgency: data.urgency,
       budgetMin: data.budgetMin,
       budgetMax: data.budgetMax,
+      agreedPrice: data.agreedPrice,
+      status: requiresPayment ? "AWAITING_PAYMENT" : "PENDING",
       isDirectRequest: !!data.technicianId,
       images: data.imageUrls?.length
         ? {
@@ -257,7 +261,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  if (created.technicianId) {
+  if (created.technicianId && !requiresPayment) {
     await prisma.notification.create({
       data: {
         userId: created.technicianId,
@@ -269,5 +273,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ request: created }, { status: 201 });
+  return NextResponse.json({ request: created, requiresPayment }, { status: 201 });
 }

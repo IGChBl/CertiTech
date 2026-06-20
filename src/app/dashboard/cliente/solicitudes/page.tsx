@@ -6,7 +6,9 @@ import { ServiceRequestForm } from "@/components/forms/service-request-form";
 import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 import { StartChatButton } from "@/components/forms/start-chat-button";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { Calendar, MapPin, DollarSign, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, DollarSign, AlertCircle, Star, ShieldCheck } from "lucide-react";
+import { ReviewForm } from "@/components/forms/review-form";
+import { PaymentActions } from "@/components/forms/payment-actions";
 
 const clientLinks = [
   { href: "/dashboard/cliente", label: "Resumen" },
@@ -20,10 +22,14 @@ const clientLinks = [
 export default async function ClienteSolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tecnicoId?: string }>;
+  searchParams: Promise<{ tecnicoId?: string; categoriaId?: string; titulo?: string; precio?: string; pago?: string }>;
 }) {
   const params = await searchParams;
   const defaultTechnicianId = params.tecnicoId;
+  const defaultCategoryId = params.categoriaId;
+  const defaultTitle = params.titulo;
+  const defaultAgreedPrice = params.precio ? Number(params.precio) : undefined;
+  const pagoOk = params.pago === "ok";
 
   const user = await requirePageRole("CLIENT");
   const clientStatus = user.clientProfile?.verificationStatus ?? "PENDING";
@@ -36,35 +42,20 @@ export default async function ClienteSolicitudesPage({
       : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
 
   const categoriesPromise = prisma.serviceCategory
-    .findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    })
+    .findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } })
     .then((data) => ({ categories: data, hasWarning: false }))
-    .catch((error) => {
-      console.error("[dashboard][cliente][solicitudes] Error cargando categorías", error);
-      return { categories: [], hasWarning: true };
-    });
+    .catch(() => ({ categories: [], hasWarning: true }));
 
   const techniciansPromise = canCreateRequests
     ? prisma.technicianProfile
         .findMany({
           where: buildPublicTechnicianWhere(),
-          orderBy: [
-            { featuredUntil: "desc" },
-            { subscriptionPlan: "desc" },
-            { averageRating: "desc" },
-            { totalReviews: "desc" },
-          ],
+          orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { averageRating: "desc" }, { totalReviews: "desc" }],
           take: 50,
           select: { userId: true, displayName: true, businessName: true },
         })
         .then((data) => ({ technicians: data, hasWarning: false }))
-        .catch((error) => {
-          console.error("[dashboard][cliente][solicitudes] Error cargando técnicos", error);
-          return { technicians: [], hasWarning: true };
-        })
+        .catch(() => ({ technicians: [], hasWarning: true }))
     : Promise.resolve({ technicians: [], hasWarning: false });
 
   const requestsPromise = prisma.serviceRequest
@@ -72,15 +63,13 @@ export default async function ClienteSolicitudesPage({
       where: { clientId: user.id },
       include: {
         category: true,
+        review: { select: { id: true, rating: true } },
+        payment: true,
         technician: {
           select: {
             id: true,
             technicianProfile: {
-              select: {
-                displayName: true,
-                businessName: true,
-                avatarUrl: true,
-              },
+              select: { id: true, displayName: true, businessName: true, avatarUrl: true },
             },
           },
         },
@@ -88,10 +77,7 @@ export default async function ClienteSolicitudesPage({
       orderBy: { createdAt: "desc" },
     })
     .then((data) => ({ requests: data, hasWarning: false }))
-    .catch((error) => {
-      console.error("[dashboard][cliente][solicitudes] Error cargando historial", error);
-      return { requests: [], hasWarning: true };
-    });
+    .catch(() => ({ requests: [], hasWarning: true }));
 
   const [categoriesResult, techniciansResult, requestsResult] = await Promise.all([
     categoriesPromise,
@@ -102,37 +88,43 @@ export default async function ClienteSolicitudesPage({
   const categories = categoriesResult.categories;
   const technicians = techniciansResult.technicians;
   const requests = requestsResult.requests;
-  const hasWarning =
-    categoriesResult.hasWarning || techniciansResult.hasWarning || requestsResult.hasWarning;
+  const hasWarning = categoriesResult.hasWarning || techniciansResult.hasWarning || requestsResult.hasWarning;
 
-  const urgencyLabels: Record<string, string> = {
-    LOW: "Baja",
-    MEDIUM: "Media",
-    HIGH: "Alta",
-    URGENT: "Urgente",
-  };
-
+  const urgencyLabels: Record<string, string> = { LOW: "Baja", MEDIUM: "Media", HIGH: "Alta", URGENT: "Urgente" };
   const urgencyColors: Record<string, string> = {
     LOW: "bg-blue-50 text-blue-800 border-blue-100",
     MEDIUM: "bg-slate-100 text-slate-800 border-slate-200",
     HIGH: "bg-amber-50 text-amber-800 border-amber-100",
     URGENT: "bg-rose-50 text-rose-800 border-rose-100",
   };
-
   const statusLabels: Record<string, string> = {
+    AWAITING_PAYMENT: "Pendiente de pago",
     PENDING: "Pendiente",
     ACCEPTED: "Aceptado",
     IN_PROGRESS: "En Progreso",
     COMPLETED: "Completado",
     CANCELED: "Cancelado",
   };
-
   const statusColors: Record<string, string> = {
+    AWAITING_PAYMENT: "bg-violet-50 text-violet-800 border-violet-200",
     PENDING: "bg-amber-50 text-amber-800 border-amber-200",
     ACCEPTED: "bg-blue-50 text-blue-800 border-blue-200",
     IN_PROGRESS: "bg-indigo-50 text-indigo-800 border-indigo-200",
     COMPLETED: "bg-emerald-50 text-emerald-800 border-emerald-200",
     CANCELED: "bg-rose-50 text-rose-800 border-rose-200",
+  };
+
+  const paymentStatusLabel: Record<string, string> = {
+    PENDING: "Pago pendiente",
+    HELD: "Pago retenido en escrow",
+    RELEASED: "Pago liberado al técnico",
+    REFUNDED: "Reembolso procesado",
+  };
+  const paymentStatusColor: Record<string, string> = {
+    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+    HELD: "bg-violet-50 text-violet-700 border-violet-200",
+    RELEASED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    REFUNDED: "bg-rose-50 text-rose-700 border-rose-200",
   };
 
   return (
@@ -141,13 +133,22 @@ export default async function ClienteSolicitudesPage({
       subtitle="Publica nuevas necesidades y monitorea su estado de contratación."
       links={clientLinks}
     >
-      {hasWarning ? (
+      {hasWarning && (
         <Card>
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
             No se pudieron cargar algunos datos temporalmente. Intenta recargar la página.
           </p>
         </Card>
-      ) : null}
+      )}
+
+      {pagoOk && (
+        <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+          <p className="text-sm font-medium text-emerald-800">
+            ¡Pago recibido! El dinero quedará retenido hasta que confirmes la recepción del servicio.
+          </p>
+        </div>
+      )}
 
       <Card className="p-6">
         <h2 className="mb-4 text-xl font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
@@ -164,6 +165,9 @@ export default async function ClienteSolicitudesPage({
               label: item.businessName ? `${item.displayName} - ${item.businessName}` : item.displayName,
             }))}
             defaultTechnicianId={defaultTechnicianId}
+            defaultCategoryId={defaultCategoryId}
+            defaultTitle={defaultTitle}
+            defaultAgreedPrice={defaultAgreedPrice}
           />
         ) : (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{restrictionMessage}</p>
@@ -187,9 +191,7 @@ export default async function ClienteSolicitudesPage({
                       {request.category.name}
                     </span>
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                        urgencyColors[request.urgency]
-                      }`}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${urgencyColors[request.urgency]}`}
                     >
                       Urgencia: {urgencyLabels[request.urgency]}
                     </span>
@@ -197,9 +199,7 @@ export default async function ClienteSolicitudesPage({
                   <h3 className="text-lg font-bold text-slate-900">{request.title}</h3>
                 </div>
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${
-                    statusColors[request.status]
-                  }`}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${statusColors[request.status]}`}
                 >
                   {statusLabels[request.status]}
                 </span>
@@ -218,12 +218,11 @@ export default async function ClienteSolicitudesPage({
                 <div className="flex items-center gap-1.5">
                   <DollarSign className="h-4 w-4 text-slate-400 shrink-0" />
                   <span>
-                    Presupuesto:{" "}
-                    {request.budgetMin !== null || request.budgetMax !== null
-                      ? `${request.budgetMin !== null ? `C$ ${request.budgetMin.toLocaleString()}` : "0"} - ${
-                          request.budgetMax !== null ? `C$ ${request.budgetMax.toLocaleString()}` : "Max"
-                        }`
-                      : "A convenir"}
+                    {request.agreedPrice
+                      ? `Precio acordado: C$ ${request.agreedPrice.toLocaleString()}`
+                      : request.budgetMin !== null || request.budgetMax !== null
+                        ? `Presupuesto: ${request.budgetMin !== null ? `C$ ${request.budgetMin.toLocaleString()}` : "0"} - ${request.budgetMax !== null ? `C$ ${request.budgetMax.toLocaleString()}` : "Max"}`
+                        : "A convenir"}
                   </span>
                 </div>
                 {request.desiredDate && (
@@ -234,7 +233,77 @@ export default async function ClienteSolicitudesPage({
                 )}
               </div>
 
-              {/* Technician Info & Quick Chat */}
+              {/* Pago pendiente — redirigir a pagar */}
+              {request.status === "AWAITING_PAYMENT" && (
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-violet-800">Pago requerido para confirmar</p>
+                    <p className="text-xs text-violet-600">
+                      Completa el pago de C$ {request.agreedPrice?.toLocaleString()} para que el técnico reciba tu solicitud.
+                    </p>
+                  </div>
+                  <a
+                    href={`/pago/${request.id}`}
+                    className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800 transition shrink-0"
+                  >
+                    Completar pago →
+                  </a>
+                </div>
+              )}
+
+              {/* Estado del pago en escrow */}
+              {request.payment && request.payment.status !== "PENDING" && (
+                <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${paymentStatusColor[request.payment.status]}`}>
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{paymentStatusLabel[request.payment.status]}</p>
+                    {request.payment.status === "HELD" && (
+                      <p className="text-xs opacity-80">C$ {request.payment.amount.toLocaleString()} retenidos hasta que confirmes el servicio.</p>
+                    )}
+                    {request.payment.status === "REFUNDED" && request.payment.refundReason && (
+                      <p className="text-xs opacity-80">Motivo: {request.payment.refundReason}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Acciones de pago: confirmar o pedir reembolso */}
+              {request.payment?.status === "HELD" && request.status !== "AWAITING_PAYMENT" && (
+                <PaymentActions
+                  paymentId={request.payment.id}
+                  amount={request.payment.amount}
+                  requestStatus={request.status}
+                />
+              )}
+
+              {/* Review — solo para servicios completados con técnico asignado */}
+              {request.status === "COMPLETED" && request.technician?.technicianProfile && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <Star className="h-4 w-4 text-amber-400" />
+                    {request.review ? "Tu valoración" : "Valorar este servicio"}
+                  </div>
+                  {request.review ? (
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star
+                          key={n}
+                          className={`h-5 w-5 ${n <= request.review!.rating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`}
+                        />
+                      ))}
+                      <span className="text-sm text-slate-500">Ya valoraste este servicio</span>
+                    </div>
+                  ) : (
+                    <ReviewForm
+                      serviceRequestId={request.id}
+                      technicianProfileId={request.technician.technicianProfile.id}
+                      technicianName={request.technician.technicianProfile.displayName}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Info del técnico y chat */}
               {request.technician ? (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl bg-slate-50 p-4 border border-slate-150 animate-in fade-in duration-200">
                   <div className="flex items-center gap-3">
@@ -249,13 +318,10 @@ export default async function ClienteSolicitudesPage({
                         {request.technician.technicianProfile?.displayName}
                       </p>
                       {request.technician.technicianProfile?.businessName && (
-                        <p className="text-xs text-slate-500">
-                          {request.technician.technicianProfile.businessName}
-                        </p>
+                        <p className="text-xs text-slate-500">{request.technician.technicianProfile.businessName}</p>
                       )}
                     </div>
                   </div>
-
                   <StartChatButton
                     recipientUserId={request.technician.id}
                     label="Conversar con Técnico"
@@ -274,7 +340,7 @@ export default async function ClienteSolicitudesPage({
               )}
             </div>
           ))}
-          {!requests.length ? <p className="text-sm text-slate-600">Aún no has publicado solicitudes.</p> : null}
+          {!requests.length && <p className="text-sm text-slate-600">Aún no has publicado solicitudes.</p>}
         </div>
       </Card>
     </DashboardShell>

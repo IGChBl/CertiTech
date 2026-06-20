@@ -16,14 +16,11 @@ type TechnicianOption = {
   label: string;
 };
 
-async function readResponseData(response: Response): Promise<{ error?: string; message?: string }> {
+async function readResponseData(response: Response): Promise<{ error?: string; message?: string; request?: { id: string }; requiresPayment?: boolean }> {
   const raw = await response.text();
-  if (!raw) {
-    return {};
-  }
-
+  if (!raw) return {};
   try {
-    return JSON.parse(raw) as { error?: string; message?: string };
+    return JSON.parse(raw);
   } catch {
     return {};
   }
@@ -33,16 +30,23 @@ export function ServiceRequestForm({
   categories,
   technicians,
   defaultTechnicianId,
+  defaultCategoryId,
+  defaultTitle,
+  defaultAgreedPrice,
 }: {
   categories: CategoryOption[];
   technicians: TechnicianOption[];
   defaultTechnicianId?: string;
+  defaultCategoryId?: string;
+  defaultTitle?: string;
+  defaultAgreedPrice?: number;
 }) {
   const router = useRouter();
   const bookedTech = defaultTechnicianId ? technicians.find((t) => t.userId === defaultTechnicianId) : undefined;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [agreedPrice, setAgreedPrice] = useState<string>(defaultAgreedPrice ? String(defaultAgreedPrice) : "");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +56,7 @@ export function ServiceRequestForm({
 
     const formData = new FormData(event.currentTarget);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       title: String(formData.get("title") ?? ""),
       categoryId: String(formData.get("categoryId") ?? ""),
       description: String(formData.get("description") ?? ""),
@@ -68,6 +72,11 @@ export function ServiceRequestForm({
       technicianId: String(formData.get("technicianId") ?? "") || undefined,
     };
 
+    const priceVal = formData.get("agreedPrice");
+    if (priceVal && Number(priceVal) > 0) {
+      payload.agreedPrice = Number(priceVal);
+    }
+
     const response = await fetch("/api/service-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -79,6 +88,11 @@ export function ServiceRequestForm({
     if (!response.ok) {
       setError(data.error ?? "No se pudo crear la solicitud.");
       setLoading(false);
+      return;
+    }
+
+    if (data.requiresPayment && data.request?.id) {
+      router.push(`/pago/${data.request.id}`);
       return;
     }
 
@@ -94,7 +108,13 @@ export function ServiceRequestForm({
         <label htmlFor="service-request-title" className="block text-sm font-medium text-slate-700">
           Título del problema o necesidad
         </label>
-        <Input id="service-request-title" name="title" required placeholder="Título del problema o necesidad" />
+        <Input
+          id="service-request-title"
+          name="title"
+          required
+          placeholder="Título del problema o necesidad"
+          defaultValue={defaultTitle}
+        />
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="space-y-1">
@@ -105,6 +125,7 @@ export function ServiceRequestForm({
             id="service-request-category"
             name="categoryId"
             required
+            defaultValue={defaultCategoryId ?? ""}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
           >
             <option value="">Selecciona categoría</option>
@@ -176,7 +197,7 @@ export function ServiceRequestForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="space-y-1">
           <label htmlFor="service-request-desired-date" className="block text-sm font-medium text-slate-700">
             Fecha deseada
@@ -198,6 +219,9 @@ export function ServiceRequestForm({
             <option value="URGENT">Urgente</option>
           </select>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="space-y-1">
           <label htmlFor="service-request-budget-min" className="block text-sm font-medium text-slate-700">
             Presupuesto mínimo
@@ -210,13 +234,32 @@ export function ServiceRequestForm({
           </label>
           <Input id="service-request-budget-max" name="budgetMax" type="number" min={0} placeholder="Presupuesto máximo" />
         </div>
+        <div className="space-y-1">
+          <label htmlFor="service-request-agreed-price" className="block text-sm font-medium text-slate-700">
+            Precio acordado {defaultAgreedPrice ? <span className="text-emerald-600">(del servicio)</span> : "(opcional)"}
+          </label>
+          <Input
+            id="service-request-agreed-price"
+            name="agreedPrice"
+            type="number"
+            min={1}
+            placeholder="Monto a pagar"
+            value={agreedPrice}
+            onChange={(e) => setAgreedPrice(e.target.value)}
+          />
+          {agreedPrice && Number(agreedPrice) > 0 && (
+            <p className="text-xs text-emerald-700 font-medium mt-1">
+              Se solicitará pago de C$ {Number(agreedPrice).toLocaleString()} al confirmar la solicitud.
+            </p>
+          )}
+        </div>
       </div>
 
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
       {message ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
 
       <Button type="submit" disabled={loading} className="w-full md:w-auto">
-        {loading ? "Publicando..." : "Publicar solicitud"}
+        {loading ? "Publicando..." : agreedPrice && Number(agreedPrice) > 0 ? "Continuar al pago →" : "Publicar solicitud"}
       </Button>
     </form>
   );

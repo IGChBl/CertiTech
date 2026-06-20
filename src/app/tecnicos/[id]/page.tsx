@@ -162,6 +162,12 @@ export default async function TecnicoDetallePage({
                     <p className="mt-3 text-sm text-slate-400 italic">Sin descripción adicional.</p>
                   )}
                 </div>
+                <Link
+                  href={`/dashboard/cliente/solicitudes?tecnicoId=${technician.user.id}&categoriaId=${service.categoryId}&titulo=${encodeURIComponent(service.title)}${service.basePrice ? `&precio=${service.basePrice}` : ""}`}
+                  className="mt-3 inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition w-full"
+                >
+                  {service.basePrice ? `Agendar — C$ ${service.basePrice.toLocaleString()}` : "Agendar este servicio"}
+                </Link>
               </div>
             ))}
           </div>

@@ -55,11 +55,19 @@ enum RequestUrgency {
 }
 
 enum ServiceRequestStatus {
+  AWAITING_PAYMENT
   PENDING
   ACCEPTED
   IN_PROGRESS
   COMPLETED
   CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  HELD
+  RELEASED
+  REFUNDED
 }
 
 enum ReportReason {
@@ -164,6 +172,7 @@ model User {
   passwordResetTokens   PasswordResetToken[]
   emailVerification     EmailVerificationToken[]
   chatsCreated          Chat[]                   @relation("ChatCreatedBy")
+  payments              Payment[]
 
   @@index([roleId])
   @@index([email])
@@ -298,6 +307,7 @@ model ServiceRequest {
   budgetMin         Int?
   budgetMax         Int?
   status            ServiceRequestStatus @default(PENDING)
+  agreedPrice       Int?
   isDirectRequest   Boolean              @default(false)
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
@@ -311,6 +321,7 @@ model ServiceRequest {
   chat       Chat?
   review     Review?
   reports    Report[]
+  payment    Payment?
 
   @@index([clientId])
   @@index([technicianId])
@@ -520,4 +531,26 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  serviceRequestId String        @unique
+  clientId         String
+  amount           Int
+  status           PaymentStatus @default(PENDING)
+  cardLastFour     String?
+  cardHolder       String?
+  paidAt           DateTime?
+  releasedAt       DateTime?
+  refundedAt       DateTime?
+  refundReason     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  client         User           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([status])
 }

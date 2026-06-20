@@ -7,7 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { refreshUnreadMessagesCount } from "@/lib/chat/unread-count-store";
-import { HandCoins, X, Check, Clock, CheckCircle, XCircle } from "lucide-react";
+import {
+  HandCoins, X, Check, Clock, CheckCircle, XCircle,
+  Paperclip, FileText, Download, CreditCard, AlertCircle,
+  RefreshCw, Ban,
+} from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ChatItem = {
   id: string;
@@ -19,119 +25,309 @@ type OfferPayload = {
   type: "offer";
   price: number;
   status: "pending" | "accepted" | "rejected";
+  paidAt?: string;
+};
+
+type DocumentPayload = {
+  type: "document";
+  url: string;
+  name: string;
+  size: number;
+  mimeType: string;
 };
 
 type ChatMessage = {
   id: string;
   content: string;
   createdAt: string;
-  sender: {
-    id: string;
-    name: string;
-    avatarUrl?: string | null;
-  };
+  sender: { id: string; name: string; avatarUrl?: string | null };
 };
+
+// ─── Parsers ──────────────────────────────────────────────────────────────────
 
 function tryParseOffer(content: string): OfferPayload | null {
   if (!content.startsWith("{")) return null;
   try {
-    const parsed = JSON.parse(content);
-    if (parsed?.type === "offer" && typeof parsed.price === "number") {
-      return parsed as OfferPayload;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+    const p = JSON.parse(content);
+    if (p?.type === "offer" && typeof p.price === "number") return p as OfferPayload;
+  } catch { /* noop */ }
+  return null;
 }
+
+function tryParseDocument(content: string): DocumentPayload | null {
+  if (!content.startsWith("{")) return null;
+  try {
+    const p = JSON.parse(content);
+    if (p?.type === "document" && p.url && p.name) return p as DocumentPayload;
+  } catch { /* noop */ }
+  return null;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ─── Document card ────────────────────────────────────────────────────────────
+
+function DocumentCard({ doc, isMine }: { doc: DocumentPayload; isMine: boolean }) {
+  const isPdf = doc.mimeType === "application/pdf";
+  const isImage = doc.mimeType.startsWith("image/");
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 w-64 shadow-sm ${
+      isMine ? "border-slate-700 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-900"
+    }`}>
+      <div className="flex items-center gap-2 mb-2">
+        <FileText className={`h-4 w-4 shrink-0 ${isMine ? "text-slate-300" : "text-slate-500"}`} />
+        <span className={`text-xs font-semibold truncate ${isMine ? "text-slate-200" : "text-slate-600"}`}>
+          {isPdf ? "PDF" : isImage ? "Imagen" : "Documento"}
+        </span>
+      </div>
+      <p className={`text-sm font-medium truncate mb-0.5 ${isMine ? "text-white" : "text-slate-900"}`}>
+        {doc.name}
+      </p>
+      <p className={`text-xs mb-3 ${isMine ? "text-slate-400" : "text-slate-500"}`}>
+        {formatBytes(doc.size)}
+      </p>
+      <a
+        href={doc.url}
+        download={doc.name}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold py-1.5 transition ${
+          isMine
+            ? "bg-white/10 text-white hover:bg-white/20"
+            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        }`}
+      >
+        <Download className="h-3.5 w-3.5" />
+        Descargar
+      </a>
+    </div>
+  );
+}
+
+// ─── Payment modal ────────────────────────────────────────────────────────────
+
+function PaymentModal({
+  offer,
+  onConfirm,
+  onCancel,
+  confirming,
+}: {
+  offer: OfferPayload;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirming: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-[var(--brand-teal)]" />
+            <h2 className="text-base font-semibold text-slate-900">Confirmar pago</h2>
+          </div>
+          <button type="button" onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Amount */}
+          <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-slate-600">Total a pagar</span>
+            <span className="text-2xl font-bold text-slate-900">C$ {offer.price.toLocaleString()}</span>
+          </div>
+
+          {/* Card fields (UI only — real gateway se integra aquí) */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Nombre en la tarjeta</label>
+              <input
+                type="text"
+                placeholder="Ej. Juan Pérez"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--brand-teal)] focus:ring-2 focus:ring-[var(--brand-teal-ring)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Número de tarjeta</label>
+              <input
+                type="text"
+                placeholder="•••• •••• •••• ••••"
+                maxLength={19}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--brand-teal)] focus:ring-2 focus:ring-[var(--brand-teal-ring)] font-mono tracking-widest"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Vencimiento</label>
+                <input
+                  type="text"
+                  placeholder="MM / AA"
+                  maxLength={7}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--brand-teal)] focus:ring-2 focus:ring-[var(--brand-teal-ring)] font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">CVV</label>
+                <input
+                  type="text"
+                  placeholder="•••"
+                  maxLength={4}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--brand-teal)] focus:ring-2 focus:ring-[var(--brand-teal-ring)] font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <p className="flex items-center gap-1.5 text-xs text-slate-400">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            Tus datos están protegidos con encriptación SSL.
+          </p>
+        </div>
+
+        <div className="px-6 pb-5 flex gap-3">
+          <Button type="button" variant="ghost" onClick={onCancel} className="flex-1" disabled={confirming}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={onConfirm} className="flex-1" disabled={confirming}>
+            {confirming ? "Procesando..." : `Pagar C$ ${offer.price.toLocaleString()}`}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Offer card ───────────────────────────────────────────────────────────────
 
 function OfferCard({
   offer,
   messageId,
   isMine,
-  onUpdateStatus,
+  showRejectOptions,
+  onAcceptClick,
+  onRejectClick,
+  onCounterOffer,
+  onStopNegotiating,
 }: {
   offer: OfferPayload;
   messageId: string;
   isMine: boolean;
-  onUpdateStatus: (messageId: string, status: "accepted" | "rejected") => void;
+  showRejectOptions: boolean;
+  onAcceptClick: (messageId: string, offer: OfferPayload) => void;
+  onRejectClick: (messageId: string) => void;
+  onCounterOffer: (price: number) => void;
+  onStopNegotiating: (messageId: string) => void;
 }) {
   const isPending = offer.status === "pending";
   const isAccepted = offer.status === "accepted";
   const isRejected = offer.status === "rejected";
 
   return (
-    <div
-      className={`rounded-2xl border px-4 py-3 text-sm w-64 shadow-sm transition-all
+    <div className="space-y-2">
+      <div className={`rounded-2xl border px-4 py-3 text-sm w-64 shadow-sm transition-all
         ${isAccepted ? "border-emerald-200 bg-emerald-50" : ""}
         ${isRejected ? "border-rose-200 bg-rose-50" : ""}
         ${isPending ? (isMine ? "border-blue-200 bg-blue-50" : "border-amber-200 bg-amber-50") : ""}
-      `}
-    >
-      {/* Icon + label row */}
-      <div className="flex items-center gap-2 mb-2">
-        {isPending && <HandCoins className="h-4 w-4 text-slate-500 shrink-0" />}
-        {isAccepted && <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />}
-        {isRejected && <XCircle className="h-4 w-4 text-rose-500 shrink-0" />}
-        <span className={`text-xs font-semibold
+      `}>
+        <div className="flex items-center gap-2 mb-2">
+          {isPending && <HandCoins className="h-4 w-4 text-slate-500 shrink-0" />}
+          {isAccepted && <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />}
+          {isRejected && <XCircle className="h-4 w-4 text-rose-500 shrink-0" />}
+          <span className={`text-xs font-semibold
+            ${isAccepted ? "text-emerald-700" : ""}
+            ${isRejected ? "text-rose-600" : ""}
+            ${isPending ? "text-slate-600" : ""}
+          `}>
+            {isPending ? "Propuesta de precio" : isAccepted ? "Oferta aceptada" : "Oferta rechazada"}
+          </span>
+        </div>
+
+        <p className={`text-2xl font-bold mb-1
           ${isAccepted ? "text-emerald-700" : ""}
-          ${isRejected ? "text-rose-600" : ""}
-          ${isPending ? "text-slate-600" : ""}
+          ${isRejected ? "text-rose-600 line-through opacity-70" : ""}
+          ${isPending ? "text-slate-900" : ""}
         `}>
-          {isPending ? "Propuesta de precio" : isAccepted ? "Oferta aceptada" : "Oferta rechazada"}
-        </span>
+          C$ {offer.price.toLocaleString()}
+        </p>
+
+        {isPending && isMine && (
+          <p className="flex items-center gap-1 text-xs text-slate-500 mt-2">
+            <Clock className="h-3 w-3" />
+            Esperando respuesta...
+          </p>
+        )}
+
+        {isPending && !isMine && (
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => onAcceptClick(messageId, offer)}
+              className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold py-1.5 hover:bg-emerald-700 transition"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Aceptar
+            </button>
+            <button
+              type="button"
+              onClick={() => onRejectClick(messageId)}
+              className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-semibold py-1.5 hover:bg-rose-200 transition"
+            >
+              <X className="h-3.5 w-3.5" />
+              Rechazar
+            </button>
+          </div>
+        )}
+
+        {isAccepted && offer.paidAt && (
+          <p className="text-xs text-emerald-700 mt-1 font-medium flex items-center gap-1">
+            <CreditCard className="h-3 w-3" /> Pago confirmado
+          </p>
+        )}
+        {isAccepted && !offer.paidAt && (
+          <p className="text-xs text-emerald-700 mt-1 font-medium">✓ Trato cerrado</p>
+        )}
+        {isRejected && !showRejectOptions && (
+          <p className="text-xs text-rose-500 mt-1">Esta oferta fue rechazada.</p>
+        )}
       </div>
 
-      {/* Price */}
-      <p className={`text-2xl font-bold mb-1
-        ${isAccepted ? "text-emerald-700" : ""}
-        ${isRejected ? "text-rose-600 line-through opacity-70" : ""}
-        ${isPending ? "text-slate-900" : ""}
-      `}>
-        C$ {offer.price.toLocaleString()}
-      </p>
-
-      {/* Status / Actions */}
-      {isPending && isMine && (
-        <p className="flex items-center gap-1 text-xs text-slate-500 mt-2">
-          <Clock className="h-3 w-3" />
-          Esperando respuesta...
-        </p>
-      )}
-
-      {isPending && !isMine && (
-        <div className="flex gap-2 mt-3">
+      {/* Reject options panel — shown to the person who just rejected */}
+      {isPending && showRejectOptions && (
+        <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 w-64 shadow-sm space-y-2">
+          <p className="text-xs font-semibold text-slate-700">¿Qué querés hacer?</p>
           <button
             type="button"
-            onClick={() => onUpdateStatus(messageId, "accepted")}
-            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold py-1.5 hover:bg-emerald-700 transition"
+            onClick={() => onCounterOffer(offer.price)}
+            className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 transition"
           >
-            <Check className="h-3.5 w-3.5" />
-            Aceptar
+            <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+            Hacer contra oferta
           </button>
           <button
             type="button"
-            onClick={() => onUpdateStatus(messageId, "rejected")}
-            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-semibold py-1.5 hover:bg-rose-200 transition"
+            onClick={() => onStopNegotiating(messageId)}
+            className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
           >
-            <X className="h-3.5 w-3.5" />
-            Rechazar
+            <Ban className="h-3.5 w-3.5 shrink-0" />
+            No seguir ofertando
           </button>
         </div>
-      )}
-
-      {isAccepted && (
-        <p className="text-xs text-emerald-700 mt-1 font-medium">✓ Trato cerrado</p>
-      )}
-
-      {isRejected && (
-        <p className="text-xs text-rose-500 mt-1">Esta oferta fue rechazada.</p>
       )}
     </div>
   );
 }
 
+// ─── Socket singleton ─────────────────────────────────────────────────────────
+
 let socketRef: Socket | null = null;
+
+// ─── ChatPanel ────────────────────────────────────────────────────────────────
 
 export function ChatPanel({
   initialChats,
@@ -147,66 +343,58 @@ export function ChatPanel({
   const [draft, setDraft] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // Offer modal state
+  // Offer modal
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [offerDraft, setOfferDraft] = useState("");
   const [sendingOffer, setSendingOffer] = useState(false);
 
+  // Payment modal
+  const [paymentTarget, setPaymentTarget] = useState<{ messageId: string; offer: OfferPayload } | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+
+  // Reject options
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
+
+  // File upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const markCurrentChatAsRead = useCallback(async (chatId: string) => {
-    await fetch(`/api/chats/${chatId}/read`, {
-      method: "POST",
-    }).catch(() => null);
-
+    await fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => null);
     socketRef?.emit("message-read", { chatId });
     refreshUnreadMessagesCount();
   }, []);
 
-  useEffect(() => {
-    activeChatIdRef.current = activeChatId;
-  }, [activeChatId]);
+  useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
 
   useEffect(() => {
     let mounted = true;
 
     async function initSocket() {
       await fetch("/api/socket");
-
-      socketRef = io({
-        path: "/api/socket_io",
-      });
+      socketRef = io({ path: "/api/socket_io" });
 
       socketRef.on("message:new", (message: ChatMessage & { chatId: string }) => {
         if (message.chatId === activeChatIdRef.current && mounted) {
           setMessages((prev) => [...prev, message]);
-          if (message.sender.id !== currentUserId) {
-            void markCurrentChatAsRead(message.chatId);
-          }
+          if (message.sender.id !== currentUserId) void markCurrentChatAsRead(message.chatId);
         }
-
         setChats((prev) =>
           prev.map((chat) =>
             chat.id === message.chatId
-              ? {
-                  ...chat,
-                  latestMessage: { content: tryParseOffer(message.content) ? "💰 Propuesta de precio" : message.content },
-                }
+              ? { ...chat, latestMessage: { content: getPreviewText(message.content) } }
               : chat,
           ),
         );
-
-        if (message.sender.id !== currentUserId) {
-          refreshUnreadMessagesCount();
-        }
+        if (message.sender.id !== currentUserId) refreshUnreadMessagesCount();
       });
 
-      // Listen for real-time offer status updates
       socketRef.on("message:update", (update: { id: string; chatId: string; content: string }) => {
         if (!mounted) return;
         setMessages((prev) =>
@@ -216,7 +404,6 @@ export function ChatPanel({
     }
 
     void initSocket();
-
     return () => {
       mounted = false;
       socketRef?.disconnect();
@@ -225,106 +412,69 @@ export function ChatPanel({
   }, [currentUserId, markCurrentChatAsRead]);
 
   useEffect(() => {
-    if (!activeChatId) {
-      return;
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!activeChatId) return;
     setLoadingMessages(true);
-
     fetch(`/api/chats/${activeChatId}/messages`)
-      .then((response) => response.json())
-      .then((data) => {
-        setMessages(data.messages ?? []);
-      })
-      .finally(() => {
-        setLoadingMessages(false);
-      });
-
+      .then((r) => r.json())
+      .then((data) => setMessages(data.messages ?? []))
+      .finally(() => setLoadingMessages(false));
     void markCurrentChatAsRead(activeChatId);
-
     socketRef?.emit("join-chat", activeChatId);
   }, [activeChatId, markCurrentChatAsRead]);
 
-  const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId), [chats, activeChatId]);
-  const activeOtherParticipant = useMemo(
-    () => activeChat?.participants.find((participant) => participant.userId !== currentUserId),
+  const activeChat = useMemo(() => chats.find((c) => c.id === activeChatId), [chats, activeChatId]);
+  const activeOther = useMemo(
+    () => activeChat?.participants.find((p) => p.userId !== currentUserId),
     [activeChat, currentUserId],
   );
 
+  // ── Send text message ──────────────────────────────────────────────────────
+
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!draft.trim() || !activeChatId) {
-      return;
-    }
-
+    if (!draft.trim() || !activeChatId) return;
     const content = draft.trim();
     setDraft("");
-
     if (socketRef) {
-      socketRef.emit("send-message", {
-        chatId: activeChatId,
-        content,
-      });
-      return;
-    }
-
-    await fetch(`/api/chats/${activeChatId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
-  }
-
-  async function sendOffer() {
-    const price = parseInt(offerDraft.replace(/\D/g, ""), 10);
-    if (!price || price <= 0 || !activeChatId) return;
-
-    setSendingOffer(true);
-
-    const offerContent = JSON.stringify({ type: "offer", price, status: "pending" });
-
-    if (socketRef) {
-      socketRef.emit("send-message", {
-        chatId: activeChatId,
-        content: offerContent,
-      });
+      socketRef.emit("send-message", { chatId: activeChatId, content });
     } else {
       await fetch(`/api/chats/${activeChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: offerContent }),
+        body: JSON.stringify({ content }),
       });
     }
+  }
 
+  // ── Send offer ─────────────────────────────────────────────────────────────
+
+  async function sendOffer() {
+    const price = parseInt(offerDraft.replace(/\D/g, ""), 10);
+    if (!price || price <= 0 || !activeChatId) return;
+    setSendingOffer(true);
+    const content = JSON.stringify({ type: "offer", price, status: "pending" } satisfies OfferPayload);
+    if (socketRef) {
+      socketRef.emit("send-message", { chatId: activeChatId, content });
+    } else {
+      await fetch(`/api/chats/${activeChatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+    }
     setOfferDraft("");
     setShowOfferModal(false);
     setSendingOffer(false);
   }
 
-  async function handleUpdateOfferStatus(messageId: string, status: "accepted" | "rejected") {
-    if (!activeChatId) return;
+  // ── Update offer status ────────────────────────────────────────────────────
 
-    const message = messages.find((m) => m.id === messageId);
-    if (!message) return;
-
-    const offer = tryParseOffer(message.content);
-    if (!offer) return;
-
-    const newContent = JSON.stringify({ ...offer, status });
-
-    // Optimistic UI update
+  async function updateOfferStatus(messageId: string, newContent: string) {
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, content: newContent } : m)),
     );
-
     if (socketRef) {
-      socketRef.emit("update-message", {
-        chatId: activeChatId,
-        messageId,
-        newContent,
-      });
+      socketRef.emit("update-message", { chatId: activeChatId, messageId, newContent });
     } else {
       await fetch(`/api/chats/${activeChatId}/messages`, {
         method: "PATCH",
@@ -334,180 +484,300 @@ export function ChatPanel({
     }
   }
 
-  function getLatestMessagePreview(chat: ChatItem): string {
-    const content = chat.latestMessage?.content;
-    if (!content) return "Sin mensajes";
-    if (content === "💰 Propuesta de precio") return "💰 Propuesta de precio";
+  // ── Accept → open payment modal ────────────────────────────────────────────
+
+  function handleAcceptClick(messageId: string, offer: OfferPayload) {
+    setPaymentTarget({ messageId, offer });
+  }
+
+  async function handleConfirmPayment() {
+    if (!paymentTarget) return;
+    setConfirmingPayment(true);
+    const newContent = JSON.stringify({
+      ...paymentTarget.offer,
+      status: "accepted",
+      paidAt: new Date().toISOString(),
+    } satisfies OfferPayload);
+    await updateOfferStatus(paymentTarget.messageId, newContent);
+    setConfirmingPayment(false);
+    setPaymentTarget(null);
+  }
+
+  // ── Reject → show options ──────────────────────────────────────────────────
+
+  function handleRejectClick(messageId: string) {
+    setPendingRejectId(messageId);
+  }
+
+  function handleCounterOffer(price: number) {
+    setPendingRejectId(null);
+    setOfferDraft(String(price));
+    setShowOfferModal(true);
+  }
+
+  async function handleStopNegotiating(messageId: string) {
+    const message = messages.find((m) => m.id === messageId);
+    if (!message) return;
+    const offer = tryParseOffer(message.content);
+    if (!offer) return;
+    const newContent = JSON.stringify({ ...offer, status: "rejected" } satisfies OfferPayload);
+    await updateOfferStatus(messageId, newContent);
+    setPendingRejectId(null);
+  }
+
+  // ── File upload ────────────────────────────────────────────────────────────
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !activeChatId) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al subir archivo.");
+      const content = JSON.stringify({
+        type: "document",
+        url: data.url,
+        name: data.name,
+        size: data.size,
+        mimeType: data.mimeType,
+      } satisfies DocumentPayload);
+      if (socketRef) {
+        socketRef.emit("send-message", { chatId: activeChatId, content });
+      } else {
+        await fetch(`/api/chats/${activeChatId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        });
+      }
+    } catch (err) {
+      console.error("[chat] upload error", err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function getPreviewText(content: string): string {
     if (tryParseOffer(content)) return "💰 Propuesta de precio";
+    if (tryParseDocument(content)) return "📎 Documento adjunto";
     return content;
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-      {/* Chat list */}
-      <Card className="space-y-2 p-3">
-        <h3 className="text-sm font-semibold text-slate-900">Conversaciones</h3>
-        <div className="space-y-1">
-          {chats.map((chat) => {
-            const other = chat.participants.find((participant) => participant.userId !== currentUserId);
-            const isActive = chat.id === activeChatId;
-            return (
-              <button
-                key={chat.id}
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                  isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100"
-                }`}
-                onClick={() => setActiveChatId(chat.id)}
-                type="button"
-              >
-                <div className="flex items-center gap-2">
-                  <UserAvatar name={other?.name ?? "Conversación"} src={other?.avatarUrl} size={30} />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{other?.name ?? "Conversación"}</p>
-                    <p className={`truncate text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>
-                      {getLatestMessagePreview(chat)}
-                    </p>
+    <>
+      {/* Payment modal */}
+      {paymentTarget && (
+        <PaymentModal
+          offer={paymentTarget.offer}
+          onConfirm={() => void handleConfirmPayment()}
+          onCancel={() => setPaymentTarget(null)}
+          confirming={confirmingPayment}
+        />
+      )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+        {/* Chat list */}
+        <Card className="space-y-2 p-3">
+          <h3 className="text-sm font-semibold text-slate-900">Conversaciones</h3>
+          <div className="space-y-1">
+            {chats.map((chat) => {
+              const other = chat.participants.find((p) => p.userId !== currentUserId);
+              const isActive = chat.id === activeChatId;
+              return (
+                <button
+                  key={chat.id}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                    isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100"
+                  }`}
+                  onClick={() => setActiveChatId(chat.id)}
+                  type="button"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserAvatar name={other?.name ?? "Conversación"} src={other?.avatarUrl} size={30} />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{other?.name ?? "Conversación"}</p>
+                      <p className={`truncate text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>
+                        {getPreviewText(chat.latestMessage?.content ?? "")}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Active chat window */}
+        <Card className="flex min-h-[420px] flex-col p-0">
+          {/* Header */}
+          <div className="border-b border-slate-200 px-4 py-3">
+            <div className="text-sm font-semibold text-slate-900">
+              {activeChat ? (
+                <span className="flex items-center gap-2">
+                  <UserAvatar name={activeOther?.name} src={activeOther?.avatarUrl} size={28} />
+                  {activeOther?.name ?? "Conversación"}
+                </span>
+              ) : (
+                "Selecciona una conversación"
+              )}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            {loadingMessages && <p className="text-sm text-slate-500">Cargando mensajes...</p>}
+            {!messages.length && !loadingMessages && (
+              <p className="text-sm text-slate-500">No hay mensajes aún.</p>
+            )}
+            {messages.map((message) => {
+              const mine = message.sender.id === currentUserId;
+              const offer = tryParseOffer(message.content);
+              const doc = !offer ? tryParseDocument(message.content) : null;
+
+              return (
+                <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className={`flex max-w-[85%] items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                    <UserAvatar
+                      name={message.sender.name}
+                      src={message.sender.avatarUrl}
+                      size={28}
+                      className={mine ? "opacity-90" : ""}
+                    />
+                    {offer ? (
+                      <OfferCard
+                        offer={offer}
+                        messageId={message.id}
+                        isMine={mine}
+                        showRejectOptions={pendingRejectId === message.id}
+                        onAcceptClick={handleAcceptClick}
+                        onRejectClick={handleRejectClick}
+                        onCounterOffer={handleCounterOffer}
+                        onStopNegotiating={(id) => void handleStopNegotiating(id)}
+                      />
+                    ) : doc ? (
+                      <DocumentCard doc={doc} isMine={mine} />
+                    ) : (
+                      <div className={`rounded-2xl px-3 py-2 text-sm ${
+                        mine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-900"
+                      }`}>
+                        {!mine && <p className="mb-1 text-xs font-semibold">{message.sender.name}</p>}
+                        <p>{message.content}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      {/* Active chat window */}
-      <Card className="flex min-h-[420px] flex-col p-0">
-        {/* Header */}
-        <div className="border-b border-slate-200 px-4 py-3">
-          <div className="text-sm font-semibold text-slate-900">
-            {activeChat ? (
-              <span className="flex items-center gap-2">
-                <UserAvatar name={activeOtherParticipant?.name} src={activeOtherParticipant?.avatarUrl} size={28} />
-                {activeOtherParticipant?.name ?? "Conversación"}
-              </span>
-            ) : (
-              "Selecciona una conversación"
-            )}
+              );
+            })}
+            <div ref={messagesEndRef} />
           </div>
-        </div>
 
-        {/* Messages */}
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-          {loadingMessages ? <p className="text-sm text-slate-500">Cargando mensajes...</p> : null}
-          {!messages.length && !loadingMessages ? (
-            <p className="text-sm text-slate-500">No hay mensajes aún.</p>
-          ) : null}
-          {messages.map((message) => {
-            const mine = message.sender.id === currentUserId;
-            const offer = tryParseOffer(message.content);
-
-            return (
-              <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div className={`flex max-w-[85%] items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
-                  <UserAvatar
-                    name={message.sender.name}
-                    src={message.sender.avatarUrl}
-                    size={28}
-                    className={mine ? "opacity-90" : ""}
+          {/* Offer modal panel */}
+          {showOfferModal && (
+            <div className="border-t border-slate-200 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <HandCoins className="h-4 w-4 text-amber-600" />
+                  Proponer un precio
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setShowOfferModal(false); setOfferDraft(""); }}
+                  className="text-slate-400 hover:text-slate-600 transition"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-500 text-sm font-semibold pointer-events-none">
+                    C$
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Ej. 2500"
+                    value={offerDraft}
+                    onChange={(e) => setOfferDraft(e.target.value)}
+                    className="w-full rounded-xl border border-amber-300 bg-white pl-8 pr-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition"
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void sendOffer(); } }}
+                    autoFocus
                   />
-                  {offer ? (
-                    <OfferCard
-                      offer={offer}
-                      messageId={message.id}
-                      isMine={mine}
-                      onUpdateStatus={handleUpdateOfferStatus}
-                    />
-                  ) : (
-                    <div
-                      className={`rounded-2xl px-3 py-2 text-sm ${
-                        mine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-900"
-                      }`}
-                    >
-                      {!mine ? <p className="mb-1 text-xs font-semibold">{message.sender.name}</p> : null}
-                      <p>{message.content}</p>
-                    </div>
-                  )}
                 </div>
+                <Button
+                  type="button"
+                  onClick={() => void sendOffer()}
+                  disabled={sendingOffer || !offerDraft || parseInt(offerDraft) <= 0}
+                  className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                >
+                  {sendingOffer ? "Enviando..." : "Enviar oferta"}
+                </Button>
               </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Offer modal */}
-        {showOfferModal && (
-          <div className="border-t border-slate-200 bg-amber-50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <HandCoins className="h-4 w-4 text-amber-600" />
-                Proponer un precio
+              <p className="text-xs text-slate-500">
+                La otra persona podrá aceptar o rechazar tu propuesta en el chat.
               </p>
-              <button
-                type="button"
-                onClick={() => { setShowOfferModal(false); setOfferDraft(""); }}
-                className="text-slate-400 hover:text-slate-600 transition"
-                aria-label="Cerrar"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
+          )}
+
+          {/* Input bar */}
+          <form className="border-t border-slate-200 p-3" onSubmit={sendMessage}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+              onChange={handleFileChange}
+            />
             <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute inset-y-0 left-3 flex items-center text-slate-500 text-sm font-semibold pointer-events-none">
-                  C$
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  placeholder="Ej. 2500"
-                  value={offerDraft}
-                  onChange={(e) => setOfferDraft(e.target.value)}
-                  className="w-full rounded-xl border border-amber-300 bg-white pl-8 pr-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition"
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void sendOffer(); } }}
-                  autoFocus
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={() => void sendOffer()}
-                disabled={sendingOffer || !offerDraft || parseInt(offerDraft) <= 0}
-                className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
-              >
-                {sendingOffer ? "Enviando..." : "Enviar oferta"}
+              {/* File attach button */}
+              {activeChatId && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Adjuntar documento"
+                  className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition shrink-0 disabled:opacity-50"
+                  aria-label="Adjuntar documento"
+                >
+                  {uploading
+                    ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                    : <Paperclip className="h-5 w-5" />
+                  }
+                </button>
+              )}
+
+              {/* Offer button */}
+              {activeChatId && !showOfferModal && (
+                <button
+                  type="button"
+                  onClick={() => setShowOfferModal(true)}
+                  title="Proponer precio"
+                  className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-amber-600 hover:bg-amber-50 hover:border-amber-300 transition shrink-0"
+                  aria-label="Proponer precio"
+                >
+                  <HandCoins className="h-5 w-5" />
+                </button>
+              )}
+
+              <Input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Escribe un mensaje..."
+              />
+              <Button type="submit" disabled={!activeChatId}>
+                Enviar
               </Button>
             </div>
-            <p className="text-xs text-slate-500">
-              La otra persona podrá aceptar o rechazar tu propuesta en el chat.
-            </p>
-          </div>
-        )}
-
-        {/* Input bar */}
-        <form className="border-t border-slate-200 p-3" onSubmit={sendMessage}>
-          <div className="flex gap-2">
-            {/* Offer button */}
-            {activeChatId && !showOfferModal && (
-              <button
-                type="button"
-                onClick={() => setShowOfferModal(true)}
-                title="Proponer precio"
-                className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-amber-600 hover:bg-amber-50 hover:border-amber-300 transition shrink-0"
-                aria-label="Proponer precio"
-              >
-                <HandCoins className="h-5 w-5" />
-              </button>
-            )}
-            <Input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Escribe un mensaje..."
-            />
-            <Button type="submit" disabled={!activeChatId}>
-              Enviar
-            </Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+          </form>
+        </Card>
+      </div>
+    </>
   );
 }
