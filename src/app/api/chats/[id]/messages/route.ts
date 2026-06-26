@@ -4,6 +4,7 @@ import { getCurrentSessionPayload } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { sendMessageSchema } from "@/lib/validations/chat";
 import { markChatAsRead } from "@/lib/chat/read";
+import { messageWithOfferSelect, serializeMessageWithOffer } from "@/lib/offers/service";
 import { getPrismaFriendlyErrorMessage, isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
 
 type UpdateMessageBody = {
@@ -58,52 +59,14 @@ export async function GET(
 
     const messages = await prisma.message.findMany({
       where: { chatId: id },
-      select: {
-        id: true,
-        content: true,
-        imageUrl: true,
-        createdAt: true,
-        isRead: true,
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            clientProfile: {
-              select: {
-                fullName: true,
-                avatarUrl: true,
-              },
-            },
-            technicianProfile: {
-              select: {
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      select: messageWithOfferSelect,
       orderBy: { createdAt: "asc" },
     });
 
     await markChatAsRead(id, session.userId);
 
     return NextResponse.json({
-      messages: messages.map((message) => ({
-        id: message.id,
-        content: message.content,
-        imageUrl: message.imageUrl,
-        createdAt: message.createdAt,
-        isRead: message.isRead,
-        sender: {
-          id: message.sender.id,
-          name:
-            message.sender.clientProfile?.fullName ??
-            message.sender.technicianProfile?.displayName ??
-            message.sender.email,
-          avatarUrl: message.sender.clientProfile?.avatarUrl ?? message.sender.technicianProfile?.avatarUrl ?? null,
-        },
-      })),
+      messages: messages.map(serializeMessageWithOffer),
     });
   } catch (error) {
     console.error("[chats][messages][GET] Error consultando mensajes", error);

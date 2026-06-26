@@ -5,6 +5,7 @@ import type { Socket as NetSocket } from "net";
 import { AUTH_COOKIE, AUTH_REFRESH_COOKIE } from "@/lib/constants";
 import { verifyAccessToken, verifyRefreshToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { setSocketServer } from "@/lib/realtime/socket";
 
 type NextApiResponseServerIO = NextApiResponse & {
   socket: NetSocket & {
@@ -281,6 +282,7 @@ export default function handler(_req: NextApiRequest, res: NextApiResponseServer
     });
 
     res.socket.server.io = io;
+    setSocketServer(io);
   }
 
   res.end();

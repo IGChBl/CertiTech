@@ -36,11 +36,26 @@ type DocumentPayload = {
   mimeType: string;
 };
 
+type OfferStatus = "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "CANCELED" | "SUPERSEDED";
+
+// Persisted offer (DB source of truth) attached to its anchor message.
+type PersistentOffer = {
+  id: string;
+  status: OfferStatus;
+  amount: number;
+  currency: string;
+  description: string | null;
+  clientId: string;
+  technicianProfileId: string;
+  messageId: string | null;
+};
+
 type ChatMessage = {
   id: string;
   content: string;
   createdAt: string;
   sender: { id: string; name: string; avatarUrl?: string | null };
+  offer?: PersistentOffer | null;
 };
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -203,7 +218,7 @@ function PaymentModal({
   );
 }
 
-// ─── Offer card ───────────────────────────────────────────────────────────────
+// ─── Legacy offer card (historical JSON-in-content offers) ──────────────────────
 
 function OfferCard({
   offer,
@@ -323,6 +338,111 @@ function OfferCard({
   );
 }
 
+// ─── Persistent offer card (DB source of truth for new offers) ──────────────────
+
+function PersistentOfferCard({
+  offer,
+  currentUserId,
+  deciding,
+  onDecide,
+}: {
+  offer: PersistentOffer;
+  currentUserId: string;
+  deciding: boolean;
+  onDecide: (offerId: string, action: "accept" | "reject") => void;
+}) {
+  const isClient = offer.clientId === currentUserId;
+  const isPending = offer.status === "SENT";
+  const isAccepted = offer.status === "ACCEPTED";
+  const isRejected = offer.status === "REJECTED";
+  const isClosed = !isPending && !isAccepted && !isRejected; // EXPIRED / CANCELED / SUPERSEDED
+
+  const closedLabel =
+    offer.status === "EXPIRED"
+      ? "Oferta expirada"
+      : offer.status === "CANCELED"
+        ? "Oferta cancelada"
+        : "Oferta reemplazada";
+
+  return (
+    <div
+      className={`rounded-2xl border px-4 py-3 text-sm w-64 shadow-sm transition-all
+        ${isAccepted ? "border-emerald-200 bg-emerald-50" : ""}
+        ${isRejected ? "border-rose-200 bg-rose-50" : ""}
+        ${isClosed ? "border-slate-200 bg-slate-50" : ""}
+        ${isPending ? (isClient ? "border-amber-200 bg-amber-50" : "border-blue-200 bg-blue-50") : ""}
+      `}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        {isPending && <HandCoins className="h-4 w-4 text-slate-500 shrink-0" />}
+        {isAccepted && <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />}
+        {isRejected && <XCircle className="h-4 w-4 text-rose-500 shrink-0" />}
+        {isClosed && <Clock className="h-4 w-4 text-slate-400 shrink-0" />}
+        <span
+          className={`text-xs font-semibold
+          ${isAccepted ? "text-emerald-700" : ""}
+          ${isRejected ? "text-rose-600" : ""}
+          ${isClosed ? "text-slate-500" : ""}
+          ${isPending ? "text-slate-600" : ""}
+        `}
+        >
+          {isPending
+            ? "Propuesta de precio"
+            : isAccepted
+              ? "Oferta aceptada"
+              : isRejected
+                ? "Oferta rechazada"
+                : closedLabel}
+        </span>
+      </div>
+
+      <p
+        className={`text-2xl font-bold mb-1
+        ${isAccepted ? "text-emerald-700" : ""}
+        ${isRejected ? "text-rose-600 line-through opacity-70" : ""}
+        ${isClosed ? "text-slate-500" : ""}
+        ${isPending ? "text-slate-900" : ""}
+      `}
+      >
+        C$ {offer.amount.toLocaleString()}
+      </p>
+
+      {isPending && !isClient && (
+        <p className="flex items-center gap-1 text-xs text-slate-500 mt-2">
+          <Clock className="h-3 w-3" />
+          Esperando respuesta del cliente
+        </p>
+      )}
+
+      {isPending && isClient && (
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            disabled={deciding}
+            onClick={() => onDecide(offer.id, "accept")}
+            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold py-1.5 hover:bg-emerald-700 transition disabled:opacity-50"
+          >
+            <Check className="h-3.5 w-3.5" />
+            Aceptar
+          </button>
+          <button
+            type="button"
+            disabled={deciding}
+            onClick={() => onDecide(offer.id, "reject")}
+            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-rose-100 text-rose-700 text-xs font-semibold py-1.5 hover:bg-rose-200 transition disabled:opacity-50"
+          >
+            <X className="h-3.5 w-3.5" />
+            Rechazar
+          </button>
+        </div>
+      )}
+
+      {isAccepted && <p className="text-xs text-emerald-700 mt-1 font-medium">✓ Trato cerrado</p>}
+      {isRejected && <p className="text-xs text-rose-500 mt-1">Esta oferta fue rechazada.</p>}
+    </div>
+  );
+}
+
 // ─── Socket singleton ─────────────────────────────────────────────────────────
 
 let socketRef: Socket | null = null;
@@ -347,12 +467,14 @@ export function ChatPanel({
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [offerDraft, setOfferDraft] = useState("");
   const [sendingOffer, setSendingOffer] = useState(false);
+  // Persistent offer ids currently being accepted/rejected (guards double-clicks).
+  const [decidingOfferIds, setDecidingOfferIds] = useState<string[]>([]);
 
-  // Payment modal
+  // Payment modal (legacy JSON-in-content offers only)
   const [paymentTarget, setPaymentTarget] = useState<{ messageId: string; offer: OfferPayload } | null>(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
 
-  // Reject options
+  // Reject options (legacy JSON-in-content offers only)
   const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
 
   // File upload
@@ -395,12 +517,50 @@ export function ChatPanel({
         if (message.sender.id !== currentUserId) refreshUnreadMessagesCount();
       });
 
+      // Legacy real-time offer status updates (old JSON-in-content offers).
       socketRef.on("message:update", (update: { id: string; chatId: string; content: string }) => {
         if (!mounted) return;
         setMessages((prev) =>
           prev.map((msg) => (msg.id === update.id ? { ...msg, content: update.content } : msg)),
         );
       });
+
+      // DB-first persistent offer created by the technician.
+      socketRef.on("offer:new", (message: ChatMessage & { chatId: string }) => {
+        if (!mounted) return;
+
+        if (message.chatId === activeChatIdRef.current) {
+          setMessages((prev) =>
+            prev.some((msg) => msg.id === message.id) ? prev : [...prev, message],
+          );
+          if (message.sender.id !== currentUserId) void markCurrentChatAsRead(message.chatId);
+        }
+
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === message.chatId
+              ? { ...chat, latestMessage: { content: "💰 Propuesta de precio" } }
+              : chat,
+          ),
+        );
+
+        if (message.sender.id !== currentUserId) refreshUnreadMessagesCount();
+      });
+
+      // DB-first persistent offer decision (accepted/rejected/...).
+      socketRef.on(
+        "offer:update",
+        (update: { offerId: string; chatId: string; status: OfferStatus }) => {
+          if (!mounted) return;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.offer && msg.offer.id === update.offerId
+                ? { ...msg, offer: { ...msg.offer, status: update.status } }
+                : msg,
+            ),
+          );
+        },
+      );
     }
 
     void initSocket();
@@ -413,6 +573,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!activeChatId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingMessages(true);
     fetch(`/api/chats/${activeChatId}/messages`)
       .then((r) => r.json())
@@ -446,30 +607,82 @@ export function ChatPanel({
     }
   }
 
-  // ── Send offer ─────────────────────────────────────────────────────────────
+  // ── Send offer (persistent — Offer is the source of truth) ───────────────────
 
   async function sendOffer() {
     const price = parseInt(offerDraft.replace(/\D/g, ""), 10);
-    if (!price || price <= 0 || !activeChatId) return;
+    if (!price || price <= 0 || !activeChatId || sendingOffer) return;
+
     setSendingOffer(true);
-    const content = JSON.stringify({ type: "offer", price, status: "pending" } satisfies OfferPayload);
-    if (socketRef) {
-      socketRef.emit("send-message", { chatId: activeChatId, content });
-    } else {
-      await fetch(`/api/chats/${activeChatId}/messages`, {
+    try {
+      const response = await fetch(`/api/chats/${activeChatId}/offers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ amount: price }),
       });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        // Keep the modal open so the technician can retry / read the reason.
+        window.alert(data?.error ?? "No se pudo enviar la propuesta.");
+        return;
+      }
+
+      // Append from the authoritative response immediately. The offer:new
+      // socket broadcast (which also reaches this sender's room) is deduped by
+      // message id, so this never double-inserts.
+      if (data?.message) {
+        const message = data.message as ChatMessage & { chatId: string };
+        if (message.chatId === activeChatId) {
+          setMessages((prev) =>
+            prev.some((msg) => msg.id === message.id) ? prev : [...prev, message],
+          );
+        }
+      }
+
+      setOfferDraft("");
+      setShowOfferModal(false);
+    } finally {
+      setSendingOffer(false);
     }
-    setOfferDraft("");
-    setShowOfferModal(false);
-    setSendingOffer(false);
   }
 
-  // ── Update offer status ────────────────────────────────────────────────────
+  // ── Decide persistent offer (accept / reject via API) ────────────────────────
 
-  async function updateOfferStatus(messageId: string, newContent: string) {
+  async function handleOfferDecision(offerId: string, action: "accept" | "reject") {
+    if (decidingOfferIds.includes(offerId)) return;
+
+    setDecidingOfferIds((prev) => [...prev, offerId]);
+    try {
+      const response = await fetch(`/api/offers/${offerId}/${action}`, { method: "POST" });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        window.alert(data?.error ?? "No se pudo procesar la respuesta.");
+        return;
+      }
+
+      // Reconcile from the authoritative API response. The offer:update socket
+      // event will also land for both participants.
+      if (data?.offer) {
+        const updatedStatus = data.offer.status as OfferStatus;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.offer && msg.offer.id === offerId
+              ? { ...msg, offer: { ...msg.offer, status: updatedStatus } }
+              : msg,
+          ),
+        );
+      }
+    } finally {
+      setDecidingOfferIds((prev) => prev.filter((id) => id !== offerId));
+    }
+  }
+
+  // ── Legacy offer status mutation (historical JSON-in-content offers only) ─────
+
+  async function updateLegacyOfferStatus(messageId: string, newContent: string) {
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, content: newContent } : m)),
     );
@@ -484,7 +697,7 @@ export function ChatPanel({
     }
   }
 
-  // ── Accept → open payment modal ────────────────────────────────────────────
+  // ── Legacy accept → open payment modal ───────────────────────────────────────
 
   function handleAcceptClick(messageId: string, offer: OfferPayload) {
     setPaymentTarget({ messageId, offer });
@@ -498,12 +711,12 @@ export function ChatPanel({
       status: "accepted",
       paidAt: new Date().toISOString(),
     } satisfies OfferPayload);
-    await updateOfferStatus(paymentTarget.messageId, newContent);
+    await updateLegacyOfferStatus(paymentTarget.messageId, newContent);
     setConfirmingPayment(false);
     setPaymentTarget(null);
   }
 
-  // ── Reject → show options ──────────────────────────────────────────────────
+  // ── Legacy reject → show options ─────────────────────────────────────────────
 
   function handleRejectClick(messageId: string) {
     setPendingRejectId(messageId);
@@ -521,7 +734,7 @@ export function ChatPanel({
     const offer = tryParseOffer(message.content);
     if (!offer) return;
     const newContent = JSON.stringify({ ...offer, status: "rejected" } satisfies OfferPayload);
-    await updateOfferStatus(messageId, newContent);
+    await updateLegacyOfferStatus(messageId, newContent);
     setPendingRejectId(null);
   }
 
@@ -564,6 +777,7 @@ export function ChatPanel({
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   function getPreviewText(content: string): string {
+    if (content === "💰 Propuesta de precio") return content;
     if (tryParseOffer(content)) return "💰 Propuesta de precio";
     if (tryParseDocument(content)) return "📎 Documento adjunto";
     return content;
@@ -573,7 +787,7 @@ export function ChatPanel({
 
   return (
     <>
-      {/* Payment modal */}
+      {/* Payment modal (legacy offers only) */}
       {paymentTarget && (
         <PaymentModal
           offer={paymentTarget.offer}
@@ -639,8 +853,11 @@ export function ChatPanel({
             )}
             {messages.map((message) => {
               const mine = message.sender.id === currentUserId;
-              const offer = tryParseOffer(message.content);
-              const doc = !offer ? tryParseDocument(message.content) : null;
+              // Persisted offers (DB source of truth) take precedence; only fall
+              // back to legacy JSON-in-content parsing for historical messages.
+              const persistentOffer = message.offer ?? null;
+              const legacyOffer = persistentOffer ? null : tryParseOffer(message.content);
+              const doc = persistentOffer || legacyOffer ? null : tryParseDocument(message.content);
 
               return (
                 <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -651,9 +868,16 @@ export function ChatPanel({
                       size={28}
                       className={mine ? "opacity-90" : ""}
                     />
-                    {offer ? (
+                    {persistentOffer ? (
+                      <PersistentOfferCard
+                        offer={persistentOffer}
+                        currentUserId={currentUserId}
+                        deciding={decidingOfferIds.includes(persistentOffer.id)}
+                        onDecide={(id, action) => void handleOfferDecision(id, action)}
+                      />
+                    ) : legacyOffer ? (
                       <OfferCard
-                        offer={offer}
+                        offer={legacyOffer}
                         messageId={message.id}
                         isMine={mine}
                         showRejectOptions={pendingRejectId === message.id}
