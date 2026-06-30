@@ -42,6 +42,11 @@ function getSocketCorsOrigin(): SocketCorsOrigin {
       /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
       /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
       /^http:\/\/172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
+      // Túneles públicos para demo desde otra red (Cloudflare, ngrok, localtunnel).
+      /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/,
+      /^https:\/\/[a-z0-9-]+\.ngrok-free\.app$/,
+      /^https:\/\/[a-z0-9.-]+\.ngrok\.io$/,
+      /^https:\/\/[a-z0-9-]+\.loca\.lt$/,
     ];
   }
 
