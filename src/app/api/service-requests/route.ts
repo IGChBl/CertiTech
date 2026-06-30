@@ -228,8 +228,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const requiresPayment = !!data.technicianId && !!data.agreedPrice;
-
+  // The negotiated price is never client-supplied here. A request is created
+  // PENDING; agreedPrice + AWAITING_PAYMENT are set server-side only when the
+  // client accepts a technician's persistent Offer (see lib/offers/service.ts).
   const created = await prisma.serviceRequest.create({
     data: {
       clientId: auth.user.id,
@@ -244,8 +245,7 @@ export async function POST(request: NextRequest) {
       urgency: data.urgency,
       budgetMin: data.budgetMin,
       budgetMax: data.budgetMax,
-      agreedPrice: data.agreedPrice,
-      status: requiresPayment ? "AWAITING_PAYMENT" : "PENDING",
+      status: "PENDING",
       isDirectRequest: !!data.technicianId,
       images: data.imageUrls?.length
         ? {
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  if (created.technicianId && !requiresPayment) {
+  if (created.technicianId) {
     await prisma.notification.create({
       data: {
         userId: created.technicianId,
@@ -273,5 +273,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ request: created, requiresPayment }, { status: 201 });
+  return NextResponse.json({ request: created, requiresPayment: false }, { status: 201 });
 }

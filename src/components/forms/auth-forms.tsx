@@ -172,7 +172,7 @@ export function LoginForm() {
     // 🎨 RENDERIZADO CONDICIONAL: PANTALLA SELECTORA DE MODO DUAL
     if (requiresModeSelection) {
         return (
-            <Card className="mx-auto w-full max-w-lg space-y-6 p-6">
+            <div className="space-y-6">
                 <div className="space-y-2 text-center">
                     <h1 className="text-2xl font-bold text-slate-900">Selecciona tu perfil</h1>
                     <p className="text-sm text-slate-500">
@@ -224,15 +224,13 @@ export function LoginForm() {
                 >
                     Volver al formulario tradicional
                 </button>
-            </Card>
+            </div>
         );
     }
 
-    // 📝 FORMULARIO TRADICIONAL (Se mantiene idéntico a tu estructura original, empaquetado en su Card)
+    // 📝 FORMULARIO TRADICIONAL (el cuadro y el encabezado los aporta la página de login)
     return (
-        <Card className="mx-auto w-full max-w-lg space-y-4">
-            <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
-            <form className="space-y-4" onSubmit={onSubmit}>
+        <form className="space-y-4" onSubmit={onSubmit}>
                 <div className="space-y-2">
                     <label htmlFor="login-email" className={fieldLabelClassName}>
                         Correo electrónico
@@ -272,7 +270,6 @@ export function LoginForm() {
                     {loading ? "Ingresando..." : "Entrar"}
                 </Button>
             </form>
-        </Card>
     );
 }
 

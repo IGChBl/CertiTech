@@ -2,8 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/auth/page";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Card } from "@/components/ui/card";
-import { ServiceRequestForm } from "@/components/forms/service-request-form";
-import { buildPublicTechnicianWhere } from "@/lib/subscriptions/service";
 import { StartChatButton } from "@/components/forms/start-chat-button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Calendar, MapPin, DollarSign, AlertCircle, Star, ShieldCheck } from "lucide-react";
@@ -22,45 +20,19 @@ const clientLinks = [
 export default async function ClienteSolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tecnicoId?: string; categoriaId?: string; titulo?: string; precio?: string; pago?: string }>;
+  searchParams: Promise<{ pago?: string }>;
 }) {
   const params = await searchParams;
-  const defaultTechnicianId = params.tecnicoId;
-  const defaultCategoryId = params.categoriaId;
-  const defaultTitle = params.titulo;
-  const defaultAgreedPrice = params.precio ? Number(params.precio) : undefined;
   const pagoOk = params.pago === "ok";
 
   const user = await requirePageRole("CLIENT");
-  const clientStatus = user.clientProfile?.verificationStatus ?? "PENDING";
-  const canCreateRequests =
-    user.isEmailVerified && (clientStatus === "BASIC_VERIFIED" || clientStatus === "VERIFIED");
 
-  const restrictionMessage =
-    clientStatus === "REJECTED"
-      ? "Tu verificación fue rechazada. Revisa el motivo y actualiza tu información para solicitar una nueva revisión."
-      : "Tu cuenta está pendiente de verificación. Algunas funciones estarán limitadas hasta completar el proceso.";
-
-  const categoriesPromise = prisma.serviceCategory
-    .findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } })
-    .then((data) => ({ categories: data, hasWarning: false }))
-    .catch(() => ({ categories: [], hasWarning: true }));
-
-  const techniciansPromise = canCreateRequests
-    ? prisma.technicianProfile
-        .findMany({
-          where: buildPublicTechnicianWhere(),
-          orderBy: [{ featuredUntil: "desc" }, { subscriptionPlan: "desc" }, { averageRating: "desc" }, { totalReviews: "desc" }],
-          take: 50,
-          select: { userId: true, displayName: true, businessName: true },
-        })
-        .then((data) => ({ technicians: data, hasWarning: false }))
-        .catch(() => ({ technicians: [], hasWarning: true }))
-    : Promise.resolve({ technicians: [], hasWarning: false });
-
-  const requestsPromise = prisma.serviceRequest
+  // Only paid services belong in the history now: a ServiceRequest gains a Payment
+  // exclusively through the in-chat payment flow. This naturally excludes
+  // AWAITING_PAYMENT (no payment yet) and surfaces paid / in-progress / completed.
+  const requestsResult = await prisma.serviceRequest
     .findMany({
-      where: { clientId: user.id },
+      where: { clientId: user.id, payment: { isNot: null } },
       include: {
         category: true,
         review: { select: { id: true, rating: true } },
@@ -79,16 +51,8 @@ export default async function ClienteSolicitudesPage({
     .then((data) => ({ requests: data, hasWarning: false }))
     .catch(() => ({ requests: [], hasWarning: true }));
 
-  const [categoriesResult, techniciansResult, requestsResult] = await Promise.all([
-    categoriesPromise,
-    techniciansPromise,
-    requestsPromise,
-  ]);
-
-  const categories = categoriesResult.categories;
-  const technicians = techniciansResult.technicians;
   const requests = requestsResult.requests;
-  const hasWarning = categoriesResult.hasWarning || techniciansResult.hasWarning || requestsResult.hasWarning;
+  const hasWarning = requestsResult.hasWarning;
 
   const urgencyLabels: Record<string, string> = { LOW: "Baja", MEDIUM: "Media", HIGH: "Alta", URGENT: "Urgente" };
   const urgencyColors: Record<string, string> = {
@@ -130,7 +94,7 @@ export default async function ClienteSolicitudesPage({
   return (
     <DashboardShell
       title="Mis solicitudes"
-      subtitle="Publica nuevas necesidades y monitorea su estado de contratación."
+      subtitle="Historial de servicios confirmados y pagados desde tus conversaciones."
       links={clientLinks}
     >
       {hasWarning && (
@@ -149,30 +113,6 @@ export default async function ClienteSolicitudesPage({
           </p>
         </div>
       )}
-
-      <Card className="p-6">
-        <h2 className="mb-4 text-xl font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-          <span className="p-1 bg-slate-100 text-slate-700 rounded-lg">
-            <Calendar className="h-5 w-5" />
-          </span>
-          Agendar o Solicitar un Servicio
-        </h2>
-        {canCreateRequests ? (
-          <ServiceRequestForm
-            categories={categories}
-            technicians={technicians.map((item) => ({
-              userId: item.userId,
-              label: item.businessName ? `${item.displayName} - ${item.businessName}` : item.displayName,
-            }))}
-            defaultTechnicianId={defaultTechnicianId}
-            defaultCategoryId={defaultCategoryId}
-            defaultTitle={defaultTitle}
-            defaultAgreedPrice={defaultAgreedPrice}
-          />
-        ) : (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{restrictionMessage}</p>
-        )}
-      </Card>
 
       <Card className="p-6">
         <h2 className="mb-4 text-xl font-bold text-slate-900 border-b border-slate-100 pb-3">
@@ -232,24 +172,6 @@ export default async function ClienteSolicitudesPage({
                   </div>
                 )}
               </div>
-
-              {/* Pago pendiente — redirigir a pagar */}
-              {request.status === "AWAITING_PAYMENT" && (
-                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-violet-800">Pago requerido para confirmar</p>
-                    <p className="text-xs text-violet-600">
-                      Completa el pago de C$ {request.agreedPrice?.toLocaleString()} para que el técnico reciba tu solicitud.
-                    </p>
-                  </div>
-                  <a
-                    href={`/pago/${request.id}`}
-                    className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800 transition shrink-0"
-                  >
-                    Completar pago →
-                  </a>
-                </div>
-              )}
 
               {/* Estado del pago en escrow */}
               {request.payment && request.payment.status !== "PENDING" && (
@@ -340,7 +262,11 @@ export default async function ClienteSolicitudesPage({
               )}
             </div>
           ))}
-          {!requests.length && <p className="text-sm text-slate-600">Aún no has publicado solicitudes.</p>}
+          {!requests.length && (
+            <p className="text-sm text-slate-600">
+              Aún no tienes servicios pagados. Cuando aceptes y pagues la propuesta de un técnico en el chat, aparecerá aquí.
+            </p>
+          )}
         </div>
       </Card>
     </DashboardShell>

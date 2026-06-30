@@ -32,7 +32,17 @@ function getSocketCorsOrigin(): SocketCorsOrigin {
     .filter(Boolean);
 
   if (process.env.NODE_ENV !== "production") {
-    return [...configuredOrigins, /^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/];
+    // Dev/demo: además de localhost, permite cualquier IP de red privada
+    // (192.168.x.x, 10.x.x.x, 172.16-31.x.x) para usar la app desde otros
+    // dispositivos del mismo Wi-Fi sin fijar la IP (que cambia por DHCP).
+    return [
+      ...configuredOrigins,
+      /^http:\/\/localhost(?::\d+)?$/,
+      /^http:\/\/127\.0\.0\.1(?::\d+)?$/,
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
+      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
+      /^http:\/\/172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
+    ];
   }
 
   return configuredOrigins.length > 0 ? configuredOrigins : false;

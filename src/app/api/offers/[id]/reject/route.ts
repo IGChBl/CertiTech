@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guards";
-import { decideOffer } from "@/lib/offers/service";
+import { rejectOffer } from "@/lib/offers/service";
 import { emitToChat } from "@/lib/realtime/socket";
 import { getPrismaFriendlyErrorMessage, isPrismaConnectionTimeoutError } from "@/lib/prisma-errors";
 
@@ -14,7 +14,7 @@ export async function POST(
 
     const { id } = await context.params;
 
-    const result = await decideOffer(id, auth.user.id, "REJECTED");
+    const result = await rejectOffer(id, auth.user.id);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
@@ -25,6 +25,9 @@ export async function POST(
       status: result.offer.status,
       acceptedAt: result.offer.acceptedAt,
       rejectedAt: result.offer.rejectedAt,
+      serviceRequestId: result.offer.serviceRequestId,
+      requestStatus: result.offer.requestStatus,
+      paymentAvailable: false,
     });
 
     return NextResponse.json({ offer: result.offer });

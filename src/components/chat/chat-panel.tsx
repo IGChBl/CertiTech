@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { refreshUnreadMessagesCount } from "@/lib/chat/unread-count-store";
+import { PaymentForm, type SimulatedPayment } from "@/components/forms/payment-form";
 import {
   HandCoins, X, Check, Clock, CheckCircle, XCircle,
   Paperclip, FileText, Download, CreditCard, AlertCircle,
-  RefreshCw, Ban,
+  RefreshCw, Ban, ShieldCheck,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +40,8 @@ type DocumentPayload = {
 type OfferStatus = "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "CANCELED" | "SUPERSEDED";
 
 // Persisted offer (DB source of truth) attached to its anchor message.
+// serviceRequestId/requestStatus reflect the linked ServiceRequest so an accepted
+// offer can surface "Pagar ahora" (client) / "Esperando pago" (technician).
 type PersistentOffer = {
   id: string;
   status: OfferStatus;
@@ -48,6 +51,11 @@ type PersistentOffer = {
   clientId: string;
   technicianProfileId: string;
   messageId: string | null;
+  serviceRequestId: string | null;
+  requestStatus: string | null;
+  // Status of the linked request's Payment (null until paid). Drives the in-chat
+  // "Pago procesado / confirmado" state and survives reload (derived from DB).
+  paymentStatus: string | null;
 };
 
 type ChatMessage = {
@@ -74,6 +82,16 @@ function tryParseDocument(content: string): DocumentPayload | null {
   try {
     const p = JSON.parse(content);
     if (p?.type === "document" && p.url && p.name) return p as DocumentPayload;
+  } catch { /* noop */ }
+  return null;
+}
+
+// System notices (e.g. payment confirmation) shown centered for both participants.
+function tryParseSystem(content: string): string | null {
+  if (!content.startsWith("{")) return null;
+  try {
+    const p = JSON.parse(content);
+    if (p?.type === "system" && typeof p.text === "string") return p.text as string;
   } catch { /* noop */ }
   return null;
 }
@@ -340,22 +358,44 @@ function OfferCard({
 
 // ─── Persistent offer card (DB source of truth for new offers) ──────────────────
 
+// Payment status wording differs per role and never overstates a simulated,
+// still-held payment as a real settled transfer.
+function paidLabel(paymentStatus: string, isClient: boolean): string {
+  if (paymentStatus === "RELEASED") return "Pago liberado al técnico";
+  if (paymentStatus === "REFUNDED") return "Pago reembolsado";
+  // PENDING / HELD → funds captured but not yet released.
+  return isClient
+    ? "Pago procesado (simulado)"
+    : "Pago confirmado (simulado) · Pendiente de liberación";
+}
+
 function PersistentOfferCard({
   offer,
   currentUserId,
   deciding,
   onDecide,
+  onPay,
 }: {
   offer: PersistentOffer;
   currentUserId: string;
   deciding: boolean;
   onDecide: (offerId: string, action: "accept" | "reject") => void;
+  onPay: (offer: PersistentOffer) => void;
 }) {
   const isClient = offer.clientId === currentUserId;
   const isPending = offer.status === "SENT";
   const isAccepted = offer.status === "ACCEPTED";
   const isRejected = offer.status === "REJECTED";
   const isClosed = !isPending && !isAccepted && !isRejected; // EXPIRED / CANCELED / SUPERSEDED
+
+  // An accepted offer bridges into payment only when it is linked to a request
+  // the bridge moved to AWAITING_PAYMENT. Without a linked request, payment is
+  // unavailable. Once paid, a Payment exists (status drives the "paid" wording).
+  const hasLinkedRequest = !!offer.serviceRequestId;
+  const isPaid = isAccepted && hasLinkedRequest && !!offer.paymentStatus;
+  const awaitingPayment =
+    isAccepted && hasLinkedRequest && !isPaid && offer.requestStatus === "AWAITING_PAYMENT";
+  const acceptedNoRequest = isAccepted && !hasLinkedRequest;
 
   const closedLabel =
     offer.status === "EXPIRED"
@@ -407,6 +447,7 @@ function PersistentOfferCard({
         C$ {offer.amount.toLocaleString()}
       </p>
 
+      {/* SENT — technician waits, client decides */}
       {isPending && !isClient && (
         <p className="flex items-center gap-1 text-xs text-slate-500 mt-2">
           <Clock className="h-3 w-3" />
@@ -437,7 +478,47 @@ function PersistentOfferCard({
         </div>
       )}
 
-      {isAccepted && <p className="text-xs text-emerald-700 mt-1 font-medium">✓ Trato cerrado</p>}
+      {/* ACCEPTED + linked request awaiting payment — in-chat pay, no navigation */}
+      {awaitingPayment && isClient && (
+        <button
+          type="button"
+          onClick={() => onPay(offer)}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold py-1.5 hover:bg-emerald-700 transition"
+        >
+          <CreditCard className="h-3.5 w-3.5" />
+          Pagar ahora
+        </button>
+      )}
+      {awaitingPayment && !isClient && (
+        <p className="flex items-center gap-1 text-xs text-emerald-700 mt-1 font-medium">
+          <Clock className="h-3 w-3" />
+          Oferta aceptada · Esperando pago del cliente
+        </p>
+      )}
+
+      {/* ACCEPTED + paid — role-specific simulated payment wording */}
+      {isPaid && offer.paymentStatus && (
+        <p className="flex items-center gap-1 text-xs text-emerald-700 mt-1 font-medium">
+          <CreditCard className="h-3 w-3 shrink-0" />
+          {paidLabel(offer.paymentStatus, isClient)}
+        </p>
+      )}
+
+      {/* ACCEPTED but no linked request — payment cannot be processed */}
+      {acceptedNoRequest && isClient && (
+        <p className="text-xs text-slate-600 mt-1">
+          Oferta aceptada. Esta propuesta no está vinculada a una solicitud de servicio para procesar el pago.
+        </p>
+      )}
+      {acceptedNoRequest && !isClient && (
+        <p className="text-xs text-emerald-700 mt-1 font-medium">✓ Trato cerrado</p>
+      )}
+
+      {/* ACCEPTED + linked request, not awaiting payment and not paid (edge) */}
+      {isAccepted && hasLinkedRequest && !awaitingPayment && !isPaid && (
+        <p className="text-xs text-emerald-700 mt-1 font-medium">✓ Trato cerrado</p>
+      )}
+
       {isRejected && <p className="text-xs text-rose-500 mt-1">Esta oferta fue rechazada.</p>}
     </div>
   );
@@ -473,6 +554,9 @@ export function ChatPanel({
   // Payment modal (legacy JSON-in-content offers only)
   const [paymentTarget, setPaymentTarget] = useState<{ messageId: string; offer: OfferPayload } | null>(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
+
+  // In-chat payment modal for accepted persistent offers (primary payment flow).
+  const [payOffer, setPayOffer] = useState<PersistentOffer | null>(null);
 
   // Reject options (legacy JSON-in-content offers only)
   const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
@@ -547,15 +631,59 @@ export function ChatPanel({
         if (message.sender.id !== currentUserId) refreshUnreadMessagesCount();
       });
 
-      // DB-first persistent offer decision (accepted/rejected/...).
+      // DB-first persistent offer decision (accepted/rejected/...). Carries the
+      // linked request state so both participants flip to pay / waiting-for-pay.
       socketRef.on(
         "offer:update",
-        (update: { offerId: string; chatId: string; status: OfferStatus }) => {
+        (update: {
+          offerId: string;
+          chatId: string;
+          status: OfferStatus;
+          serviceRequestId?: string | null;
+          requestStatus?: string | null;
+        }) => {
           if (!mounted) return;
           setMessages((prev) =>
             prev.map((msg) =>
               msg.offer && msg.offer.id === update.offerId
-                ? { ...msg, offer: { ...msg.offer, status: update.status } }
+                ? {
+                    ...msg,
+                    offer: {
+                      ...msg.offer,
+                      status: update.status,
+                      serviceRequestId:
+                        update.serviceRequestId !== undefined
+                          ? update.serviceRequestId
+                          : msg.offer.serviceRequestId,
+                      requestStatus:
+                        update.requestStatus !== undefined
+                          ? update.requestStatus
+                          : msg.offer.requestStatus,
+                    },
+                  }
+                : msg,
+            ),
+          );
+        },
+      );
+
+      // Payment committed for a request: flip the matching offer card to the paid
+      // state for both participants (client "procesado", technician "confirmado").
+      socketRef.on(
+        "payment:confirmed",
+        (update: { serviceRequestId: string; paymentStatus: string; requestStatus?: string | null }) => {
+          if (!mounted) return;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.offer && msg.offer.serviceRequestId === update.serviceRequestId
+                ? {
+                    ...msg,
+                    offer: {
+                      ...msg.offer,
+                      paymentStatus: update.paymentStatus,
+                      requestStatus: update.requestStatus ?? msg.offer.requestStatus,
+                    },
+                  }
                 : msg,
             ),
           );
@@ -666,11 +794,19 @@ export function ChatPanel({
       // Reconcile from the authoritative API response. The offer:update socket
       // event will also land for both participants.
       if (data?.offer) {
-        const updatedStatus = data.offer.status as OfferStatus;
+        const updated = data.offer as PersistentOffer;
         setMessages((prev) =>
           prev.map((msg) =>
             msg.offer && msg.offer.id === offerId
-              ? { ...msg, offer: { ...msg.offer, status: updatedStatus } }
+              ? {
+                  ...msg,
+                  offer: {
+                    ...msg.offer,
+                    status: updated.status,
+                    serviceRequestId: updated.serviceRequestId,
+                    requestStatus: updated.requestStatus,
+                  },
+                }
               : msg,
           ),
         );
@@ -678,6 +814,26 @@ export function ChatPanel({
     } finally {
       setDecidingOfferIds((prev) => prev.filter((id) => id !== offerId));
     }
+  }
+
+  // ── In-chat payment for an accepted persistent offer (primary flow) ──────────
+
+  function handlePaymentSuccess(payment: SimulatedPayment) {
+    const offerId = payOffer?.id;
+    setPayOffer(null);
+    if (!offerId) return;
+    // Optimistic local update; the payment:confirmed broadcast also reconciles
+    // both participants, and a reload re-derives the paid state from the DB.
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.offer && msg.offer.id === offerId
+          ? {
+              ...msg,
+              offer: { ...msg.offer, paymentStatus: payment.status, requestStatus: "PENDING" },
+            }
+          : msg,
+      ),
+    );
   }
 
   // ── Legacy offer status mutation (historical JSON-in-content offers only) ─────
@@ -780,6 +936,8 @@ export function ChatPanel({
     if (content === "💰 Propuesta de precio") return content;
     if (tryParseOffer(content)) return "💰 Propuesta de precio";
     if (tryParseDocument(content)) return "📎 Documento adjunto";
+    const systemText = tryParseSystem(content);
+    if (systemText) return systemText;
     return content;
   }
 
@@ -795,6 +953,64 @@ export function ChatPanel({
           onCancel={() => setPaymentTarget(null)}
           confirming={confirmingPayment}
         />
+      )}
+
+      {/* In-chat payment modal for an accepted persistent offer (primary flow).
+          Stays on the chat page; technician never reaches this (button is client-only). */}
+      {payOffer && payOffer.serviceRequestId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-[var(--brand-teal)]" />
+                <h2 className="text-base font-semibold text-slate-900">Pago simulado</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPayOffer(null)}
+                className="text-slate-400 hover:text-slate-600 transition"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">Técnico</span>
+                  <span className="font-medium text-slate-900">{activeOther?.name ?? "Técnico"}</span>
+                </div>
+                {payOffer.description && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Servicio</span>
+                    <span className="font-medium text-slate-900 truncate max-w-[60%] text-right">
+                      {payOffer.description}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                  <span className="text-sm text-slate-600">Total a pagar</span>
+                  <span className="text-2xl font-bold text-slate-900">
+                    C$ {payOffer.amount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <PaymentForm
+                serviceRequestId={payOffer.serviceRequestId}
+                amount={payOffer.amount}
+                onSuccess={handlePaymentSuccess}
+                onCancel={() => setPayOffer(null)}
+              />
+
+              <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                Pago simulado — no se procesará dinero real.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -830,7 +1046,7 @@ export function ChatPanel({
         </Card>
 
         {/* Active chat window */}
-        <Card className="flex min-h-[420px] flex-col p-0">
+        <Card className="flex h-[calc(100vh-220px)] max-h-[760px] min-h-[420px] flex-col p-0">
           {/* Header */}
           <div className="border-b border-slate-200 px-4 py-3">
             <div className="text-sm font-semibold text-slate-900">
@@ -853,6 +1069,17 @@ export function ChatPanel({
             )}
             {messages.map((message) => {
               const mine = message.sender.id === currentUserId;
+              // System notices render full-width and centered for both users.
+              const systemText = message.offer ? null : tryParseSystem(message.content);
+              if (systemText) {
+                return (
+                  <div key={message.id} className="flex justify-center px-4 py-1">
+                    <p className="max-w-[85%] rounded-full bg-slate-100 px-4 py-1.5 text-center text-xs font-semibold text-slate-600">
+                      {systemText}
+                    </p>
+                  </div>
+                );
+              }
               // Persisted offers (DB source of truth) take precedence; only fall
               // back to legacy JSON-in-content parsing for historical messages.
               const persistentOffer = message.offer ?? null;
@@ -874,6 +1101,7 @@ export function ChatPanel({
                         currentUserId={currentUserId}
                         deciding={decidingOfferIds.includes(persistentOffer.id)}
                         onDecide={(id, action) => void handleOfferDecision(id, action)}
+                        onPay={(o) => setPayOffer(o)}
                       />
                     ) : legacyOffer ? (
                       <OfferCard

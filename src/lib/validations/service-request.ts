@@ -13,7 +13,6 @@ export const createServiceRequestSchema = z.object({
   budgetMax: z.number().int().min(0).optional(),
   technicianId: z.string().optional(),
   imageUrls: z.array(z.string().url()).optional(),
-  agreedPrice: z.number().int().min(1).optional(),
 });
 
 export const updateServiceStatusSchema = z.object({
